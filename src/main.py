@@ -563,6 +563,10 @@ class Quid:
         elif self.l_type == Type_e.YELLOW:
             return 'yellow'
 
+    def die(self):
+        listOfQuids.remove(self)
+        del(self)
+
 
 class Neighbours:
     def __init__(self,quid1,quid2,distance):
@@ -661,6 +665,8 @@ class ControlLoop():
                 tmp_quid.lifetime = tmp_quid.lifetime + 1
                 if tmp_quid.lifetime % 4 == 0:
                     tmp_quid.grow()
+                if tmp_quid.lifetime % 20 == 0:
+                    tmp_quid.die()
 
 
         listOfNeighbours = []
