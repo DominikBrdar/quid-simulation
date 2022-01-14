@@ -19,13 +19,11 @@ import os
 PRINT_DEBUG = False
 
 
-class Variable_e(IntEnum):
-    SIM_SPEED = 1
-    TEMPERATURE = 2
 
 
 
-# GLOBALS
+
+#region GLOBALS
 # listOfQuids = list()
 # listOfQuids = multiprocessing.Manager().list()
 listOfNeighbours = list()
@@ -76,12 +74,11 @@ max_quid = None
 
 end_msg = None
 
+#endregion
 
 
-# GRAPHIC
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+#region GRAPHIC
+
 
 
 def quit(root: tk.Tk):
@@ -496,9 +493,15 @@ def start_window():
     window.geometry("600x200+10+10")
     window.mainloop()
 
+#endregion
 
 
-# ZUGI
+#region ZUGI
+class Variable_e(IntEnum):
+    SIM_SPEED = 1
+    TEMPERATURE = 2
+
+
 class Type_e(IntEnum):
     RED = 1
     BLUE = 2
@@ -537,7 +540,14 @@ class Quid:
         self.move_y_factor = round(random.uniform(-self.move_factor, self.move_factor), 4)
 
     def grow(self):
-        self.size = self.size + 1
+        if self.size < 5:
+            self.size = self.size + 1
+        else:
+            quid_x = random.randint(0, ARR_X.value)
+            quid_y = random.randint(0, ARR_Y.value)
+            newQuid = Quid(x=self.x+10, y=self.y+10, l_type=self.l_type)
+            listOfQuids.append(newQuid)
+
 
     def move(self):
         self.x = self.x + self.move_x_factor * TEMPERATURE.value
@@ -650,7 +660,7 @@ class ControlLoop():
             else:
                 tmp_quid.lifetime = tmp_quid.lifetime + 1
                 if tmp_quid.lifetime % 4 == 0:
-                    tmp_quid.size = tmp_quid.size + 1
+                    tmp_quid.grow()
 
 
         listOfNeighbours = []
@@ -676,6 +686,16 @@ class ControlLoop():
 
         # CUDA PART 2
         global phtotal, phkvadrant1, phkvadrant2, phkvadrant3, phkvadrant4, ph1count, ph2count, ph3count, ph4count
+        phkvadrant1 = 0.0
+        phkvadrant2 = 0.0
+        phkvadrant3 = 0.0
+        phkvadrant4 = 0.0
+        ph1count = 0.0
+        ph2count = 0.0
+        ph3count = 0.0
+        ph4count = 0.0
+        phtotal = 0.0
+
         for quid in self.listOfQuids:
             if (ARR_X/2) < quid.x < ARR_X and (ARR_Y/2) < quid.y < ARR_Y:
                 phkvadrant1 = phkvadrant1 + quid.pH
@@ -728,6 +748,7 @@ class ControlLoop():
                     if PRINT_DEBUG:
                         print("THEY HAVE DESTROYED THEMSELVES")
 
+#endregion
 
 
 if __name__ == '__main__':
