@@ -717,19 +717,19 @@ class ControlLoop():
         if int(ph1count) != 0:
             phkvadrant1 = round((phkvadrant1 / ph1count), 4)
         else:
-            phkvadrant1 = 7.0
+            phkvadrant1 = round(7.0, 4)
         if int(ph2count) != 0:
             phkvadrant2 = round((phkvadrant2 / ph2count), 4)
         else:
-            phkvadrant2 = 7.0
+            phkvadrant2 = round(7.0, 4)
         if int(ph3count) != 0:
             phkvadrant3 = round((phkvadrant3 / ph3count), 4)
         else:
-            phkvadrant3 = 7.0
+            phkvadrant3 = round(7.0, 4)
         if int(ph4count) != 0:
             phkvadrant4 = round((phkvadrant4 / ph4count), 4)
         else:
-            phkvadrant4 = 7.0
+            phkvadrant4 = round(7.0, 4)
         phtotal = phkvadrant3 + phkvadrant4 + phkvadrant2 + phkvadrant1
         phtotal = round((phtotal / 4), 4)
 
