@@ -1,3 +1,5 @@
+
+#region IMPORT
 import tkinter as tk
 from tkinter import ttk
 
@@ -13,17 +15,14 @@ from multiprocessing.managers import BaseManager
 import uuid
 import sys
 import os
+#endregion
 
 
+#region GLOBALS
 
 PRINT_DEBUG = False
 
 
-
-
-
-
-#region GLOBALS
 # listOfQuids = list()
 # listOfQuids = multiprocessing.Manager().list()
 listOfNeighbours = list()
