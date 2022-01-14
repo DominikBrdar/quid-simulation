@@ -752,6 +752,8 @@ class ControlLoop():
                         listOfNeighbours.remove(temp.quid2)
                     if PRINT_DEBUG:
                         print("THEY HAVE DESTROYED THEMSELVES")
+            else:
+                break
 
 #endregion
 
