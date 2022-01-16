@@ -50,6 +50,7 @@ TEMPERATURE = multiprocessing.Value("i", 10)
 
 DATA_ENTERED = False
 waitOnEnd = False
+centered = True
 done = False
 
 phkvadrant1 = 0.0
@@ -180,6 +181,14 @@ def waitonend(state):
         waitOnEnd = False
 
 
+def cntrset(state):
+    global centered
+    if state == 1:
+        centered = False
+    else:
+        centered = True
+
+
 def main_window():
     def increase_speed():
         pz = is_paused()
@@ -242,17 +251,24 @@ def main_window():
 
 
     fr_buttons = tk.Frame(window_main)
-    btn_open = tk.Button(fr_buttons, text="Play", command=play)
-    btn_save = tk.Button(fr_buttons, text="Pause", command=pause)
-    btn_quit = tk.Button(fr_buttons, text="Quit", fg="red", command=lambda: quit(window_main))
+    fr_buttons_sub = tk.Frame(fr_buttons)
+    btn_open = tk.Button(fr_buttons_sub, text="Play", command=play, height=1, width=8)
+    btn_save = tk.Button(fr_buttons_sub, text="Pause", command=pause, height=1, width=8)
+    btn_quit = tk.Button(fr_buttons_sub, text="Quit", fg="red", command=lambda: quit(window_main), height=1, width=8)
 
 
-    btn_open.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
-    btn_save.grid(row=0, column=1, sticky="ew", padx=5)
-    btn_quit.grid(row=0, column=2, sticky="ew", padx=5)
+    btn_open.grid(row=0, column=0, padx=5, pady=5)
+    btn_save.grid(row=0, column=1, padx=5)
+    btn_quit.grid(row=0, column=2, padx=5)
+
+    fr_buttons_sub.grid(row=0, column=0, padx=5)
 
     fr_buttons.grid(row=0, column=0, sticky="ns")
-    graph_canvas.grid(row=1, column=0, sticky="nsew")
+    global centered
+    if centered:
+        graph_canvas.grid(row=1, column=0, sticky="nsew")
+    else:
+        graph_canvas.grid(row=1, column=0)
 
 
 
@@ -442,6 +458,7 @@ def start_window():
 
 
     window = tk.Tk()
+    window.resizable(False, False)
 
     frame_cont = tk.Frame(window)
 
@@ -513,18 +530,26 @@ def start_window():
     t_s.grid(row=0, column=2, sticky="ew", padx=5, pady=5)
     temps.grid(row=3, column=0, sticky="nsw")
 
+    input_centre = tk.Frame(frame_cont)
+    cntr_var = tk.IntVar()
+    cntrOE = tk.Checkbutton(input_centre, text="Centre canvas", variable=cntr_var,
+                            command=lambda: cntrset(cntr_var.get())
+                            , height=5, width=20)
+    cntrOE.pack()
+    input_centre.grid(row=4, column=0, padx=5, sticky="w")
+
     fr_buttons = tk.Frame(frame_cont)
     btn1 = tk.Button(fr_buttons, text="Ok", command=lambda: clicked(window))
     btn2 = tk.Button(fr_buttons, text="Cancel", command=lambda: quit(window))
     btn1.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
     btn2.grid(row=0, column=1, sticky="ew", padx=5)
-    fr_buttons.grid(row=5, column=0, pady=50, sticky="s")
+    fr_buttons.grid(row=5, column=0, pady=10, sticky="s")
 
     frame_cont.pack()
 
 
     window.title('Parameter input')
-    window.geometry("600x200+10+10")
+    window.geometry("600x250+10+10")
     window.mainloop()
 
 #endregion
@@ -851,7 +876,9 @@ if __name__ == '__main__':
 
         if main_canvas:
             main_canvas.delete("all")  # works
-            main_canvas.create_rectangle(0, 0, ARR_X.value, ARR_Y.value, outline="black", fill=main_canvas["background"])
+            if centered:
+                main_canvas.create_rectangle(0, 0, ARR_X.value, ARR_Y.value, outline="black", fill=main_canvas["background"])
+
 
         draw_tick_UPR.wait()
 
