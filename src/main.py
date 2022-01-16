@@ -664,7 +664,7 @@ draw_tick_UPR = multiprocessing.Event()
 iter_counter = 0
 
 def tick_upr_fun():
-    global event_tick_UPR, iter_counter
+    global event_tick_UPR
     # event_tick_UPR.set()    # logic
     draw_tick_UPR.set()     # draw
 
@@ -673,8 +673,6 @@ def tick_upr_fun():
 
     if paused:
         return
-
-    iter_counter += 1
 
     # create timer for controlling UPR
     # -> timer calls function which signals with events to unblock thread
@@ -709,6 +707,9 @@ class ControlLoop():
         Y_NUM = self.Y_NUM
         ARR_X = self.ARR_X
         ARR_Y = self.ARR_Y
+
+        global iter_counter
+        iter_counter += 1
 
 
         if PRINT_DEBUG:
