@@ -77,6 +77,7 @@ max_quid = None
 end_msg = None
 
 msiter = 0.0
+maxfps = 0.0
 
 #endregion
 
@@ -92,6 +93,7 @@ def timing(f):
             print(f"Func: {f.__name__}({args},{kw}) took: %2.8f sec" % (te-ts))
         global msiter
         msiter.set('{:.8f}'.format(round((te-ts), 8)))
+        maxfps.set('{:4.4f}'.format(round(1/(te-ts), 4)))
         return result
     return wrap
 #endregion
@@ -340,12 +342,13 @@ def main_window():
 
     info = tk.Frame(fr_buttons)
 
-    global iter_c, max_iter, quid_c, max_quid, msiter
+    global iter_c, max_iter, quid_c, max_quid, msiter, maxfps
     iter_c = tk.StringVar()
     max_iter = tk.StringVar()
     quid_c = tk.StringVar()
     max_quid = tk.StringVar()
     msiter = tk.StringVar()
+    maxfps = tk.StringVar()
 
     iter_c.set('7.0')
     lb1 = tk.Label(info, textvariable=iter_c)
@@ -376,6 +379,12 @@ def main_window():
     lb5_lab = tk.Label(master=info, text="s/iter:")
     lb5_lab.grid(row=4, column=0, padx=5, sticky="ns")
     lb5.grid(row=4, column=1, padx=5, sticky="ns")
+
+    maxfps.set('0.0')
+    lb6 = tk.Label(info, textvariable=maxfps)
+    lb6_lab = tk.Label(master=info, text="-> Max. FPS:")
+    lb6_lab.grid(row=4, column=2, padx=5, sticky="ns")
+    lb6.grid(row=4, column=3, padx=5, sticky="ns")
 
     info.grid(row=1, column=1, padx=5, sticky="nsew")
 
