@@ -15,6 +15,9 @@ from multiprocessing.managers import BaseManager
 import uuid
 import sys
 import os
+
+from timeit import default_timer as timer
+from functools import wraps
 #endregion
 
 
@@ -73,12 +76,28 @@ max_quid = None
 
 end_msg = None
 
+msiter = 0.0
+
+#endregion
+
+
+#region TIMING
+def timing(f):
+    @wraps(f)
+    def wrap(*args, **kw):
+        ts = timer()
+        result = f(*args, **kw)
+        te = timer()
+        if PRINT_DEBUG:
+            print(f"Func: {f.__name__}({args},{kw}) took: %2.8f sec" % (te-ts))
+        global msiter
+        msiter.set('{:.8f}'.format(round((te-ts), 8)))
+        return result
+    return wrap
 #endregion
 
 
 #region GRAPHIC
-
-
 
 def quit(root: tk.Tk):
     os._exit(0)
@@ -92,8 +111,10 @@ def quit(root: tk.Tk):
 def update_speed(val: int):
     SIM_SPEED.value = val
 
+
 def update_temp(val: int):
     TEMPERATURE.value = val
+
 
 saved_speed = 0
 paused = 0
@@ -107,6 +128,7 @@ def play_gl() -> int:
     else:
         return False
 
+
 def pause_gl():
     global paused, saved_speed
     if not paused:
@@ -117,6 +139,7 @@ def pause_gl():
     else:
         return False
 
+
 def is_paused():
     global paused
     return True if paused == 1 else False
@@ -124,6 +147,8 @@ def is_paused():
 
 def _create_circle(self, x, y, r, **kwargs):
     return self.create_oval(x-r, y-r, x+r, y+r, **kwargs)
+
+
 tk.Canvas.create_circle = _create_circle
 
 
@@ -132,6 +157,8 @@ def _create_circle_arc(self, x, y, r, **kwargs):
         kwargs["extent"] = kwargs["end"] - kwargs["start"]
         del kwargs["end"]
     return self.create_arc(x-r, y-r, x+r, y+r, **kwargs)
+
+
 tk.Canvas.create_circle_arc = _create_circle_arc
 
 
@@ -208,12 +235,8 @@ def main_window():
     window_main.columnconfigure(0, minsize=500, weight=1)
 
 
-
     graph_canvas = tk.Canvas(window_main, background="lightblue", bd=2, confine=True, relief="groove")
     graph_canvas.config(width=ARR_X.value, height=ARR_Y.value)
-
-
-
 
 
     fr_buttons = tk.Frame(window_main)
@@ -249,7 +272,6 @@ def main_window():
     btn_increase.grid(row=0, column=3, sticky="nsew")
 
     spd.grid(row=0, column=3, padx=40, sticky="ns")
-
 
 
 
@@ -316,14 +338,14 @@ def main_window():
 
 
 
-
     info = tk.Frame(fr_buttons)
 
-    global iter_c, max_iter, quid_c, max_quid
+    global iter_c, max_iter, quid_c, max_quid, msiter
     iter_c = tk.StringVar()
     max_iter = tk.StringVar()
     quid_c = tk.StringVar()
     max_quid = tk.StringVar()
+    msiter = tk.StringVar()
 
     iter_c.set('7.0')
     lb1 = tk.Label(info, textvariable=iter_c)
@@ -349,8 +371,13 @@ def main_window():
     lb4_lab.grid(row=3, column=0, padx=5, sticky="ns")
     lb4.grid(row=3, column=1, padx=5, sticky="ns")
 
-    info.grid(row=1, column=1, padx=5, sticky="nsew")
+    msiter.set('0.0')
+    lb5 = tk.Label(info, textvariable=msiter)
+    lb5_lab = tk.Label(master=info, text="s/iter:")
+    lb5_lab.grid(row=4, column=0, padx=5, sticky="ns")
+    lb5.grid(row=4, column=1, padx=5, sticky="ns")
 
+    info.grid(row=1, column=1, padx=5, sticky="nsew")
 
 
 
@@ -487,8 +514,7 @@ def start_window():
     frame_cont.pack()
 
 
-
-    window.title('Hello Python')
+    window.title('Parameter input')
     window.geometry("600x200+10+10")
     window.mainloop()
 
@@ -624,11 +650,11 @@ def tick_upr_fun():
         global done
         done = True
 
+
 def calculateDistance(x1,y1,x2,y2):
     temp = ((abs(x2-x1))**2) + ((abs(y2-y1))**2)
     temp = round(math.sqrt(temp), 4)
     return temp
-
 
 
 class ControlLoop():
@@ -641,6 +667,7 @@ class ControlLoop():
         self.ARR_X = ARR_X
         self.ARR_Y = ARR_Y
 
+    @timing
     def run(self):
         R_NUM = self.R_NUM
         G_NUM = self.G_NUM
@@ -796,14 +823,17 @@ if __name__ == '__main__':
         while paused:
             main_win.update()
 
+        # quid_c.set('{:3.0f}'.format(len(listOfQuids)))
+        # iter_c.set('{:3.0f}'.format(iter_counter))
+
         quid_c.set(str(len(listOfQuids)))
         iter_c.set(str(iter_counter))
 
-        ph1.set(str(phkvadrant1))
-        ph2.set(str(phkvadrant2))
-        ph3.set(str(phkvadrant3))
-        ph4.set(str(phkvadrant4))
-        phT.set(str(phtotal))
+        ph1.set('{:.4f}'.format(round(phkvadrant1, 4)))
+        ph2.set('{:.4f}'.format(round(phkvadrant2, 4)))
+        ph3.set('{:.4f}'.format(round(phkvadrant3, 4)))
+        ph4.set('{:.4f}'.format(round(phkvadrant4, 4)))
+        phT.set('{:.4f}'.format(round(phtotal, 4)))
 
         main_win.update()
 
