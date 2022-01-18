@@ -17,7 +17,8 @@ import os
 
 #region GLOBALS
 
-PRINT_DEBUG = True
+PRINT_DEBUG = False
+LOG_ITER_TIMES = True
 NEXT = -1
 LAST = 0
 
@@ -351,6 +352,7 @@ def main_window():
     lb5_lab = tk.Label(master=info, text="s/iter:")
     lb5_lab.grid(row=4, column=0, padx=5, sticky="ns")
     lb5.grid(row=4, column=1, padx=5, sticky="ns")
+    print(info)
 
     maxfps.set('0.0')
     lb6 = tk.Label(info, textvariable=maxfps)
@@ -536,7 +538,8 @@ class Quid:
             self.type = [0, -1]
         self.uuid = uuid.uuid4()
         
-        global NEXT
+        global NEXT, quid_counter
+        quid_counter += 1
         NEXT = (NEXT + 1) % MAX_QUIDS.value
         self.index = freeSlots[NEXT] 
         
@@ -564,7 +567,8 @@ class Quid:
 
     def die(self):
         listOfQuids[self.index] = None
-        global LAST
+        global LAST, quid_counter
+        quid_counter -= 1
         freeSlots[LAST] = self.index
         LAST = (LAST + 1) % MAX_QUIDS.value
         del(self)
@@ -620,8 +624,9 @@ def timing(f):
         ts = timer()
         result = f(*args, **kw)
         te = timer()
-        if PRINT_DEBUG:
-            print(f"Func: {f.__name__}({args},{kw}) took: %2.8f sec" % (te-ts))
+        if PRINT_DEBUG or LOG_ITER_TIMES:
+            print(f"Iteration %d" % iter_counter, f"took: %2.8f sec" % (te-ts))
+            
         global msiter
         msiter.set('{:.8f}'.format(round((te-ts), 8)))
         maxfps.set('{:4.4f}'.format(round(1/(te-ts), 4)))
@@ -736,6 +741,7 @@ event_tick_UPR = multiprocessing.Event()
 draw_tick_UPR = multiprocessing.Event()
 
 iter_counter = 0
+quid_counter = 0
 
 def tick_upr_fun():
     global event_tick_UPR
@@ -751,7 +757,7 @@ def tick_upr_fun():
     # create timer for controlling UPR
     # -> timer calls function which signals with events to unblock thread
     if iter_counter < MAX_ITER.value:
-        Timer((SIM_SPEED.value/1000), tick_upr_fun).start()   # /1000 for s -> ms
+        Timer((SIM_SPEED.value/1000), tick_upr_fun).start()# /1000 for s -> ms
     else:
         global done
         done = True
@@ -801,7 +807,7 @@ if __name__ == '__main__':
             main_win.update()
 
         # TODO
-        quid_c.set(-1)
+        quid_c.set(str(quid_counter)) # BUG: racecondition
         iter_c.set(str(iter_counter))
 
         ph1.set('{:.4f}'.format(round(phkvadrant1, 4)))
@@ -816,7 +822,7 @@ if __name__ == '__main__':
             break
 
         if main_canvas:
-            main_canvas.delete("all")
+            main_canvas.delete("all") # TODO debug on exit (X)
             if centered:
                 main_canvas.create_rectangle(0, 0, ARR_X.value, ARR_Y.value, outline="black", fill=main_canvas["background"])
 
