@@ -7,16 +7,37 @@ from enum import IntEnum
 from threading import Timer
 from functools import wraps
 from timeit import default_timer as timer
-import numpy as np
 import uuid
-
 import os
+
+import numpy as np
+
+
+# pip install wheel
+# -> got to Python Packages (bottom of screen), search for 'cupy-cuda115' and click install (right side of screen)
+
+USECUDA = 0
+import cupy as cp
+
+
+""" memo
+# pip install --upgrade setuptools
+# install https://aka.ms/vs/17/release/vc_redist.x64.exe
+# pip install cupy  # takes FOREVER (>30 mins)
+# pip install cupy-cuda115  #prebuilt binary for CUDA v11.5 -> PyCharm doesn't see it
+"""
+
+
+
+
+
+
 
 #endregion
 
 #region CUDA-TEST
 
-CUDATEST = 1
+CUDATEST = 0
 
 def cuda_fun():
     # added to path: C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29333\bin\Hostx64\x64
@@ -64,13 +85,13 @@ LAST = 0
 
 
 # INITIAL VALUES ENTERED FROM TKINTER
-MAX_QUIDS = multiprocessing.Value("i",200)
-MAX_ITER = multiprocessing.Value("i",200)
+MAX_QUIDS = multiprocessing.Value("i",2000)
+MAX_ITER = multiprocessing.Value("i",2000)
 
-R_NUM = multiprocessing.Value("i",10)
-G_NUM = multiprocessing.Value("i",10)
-B_NUM = multiprocessing.Value("i",10)
-Y_NUM = multiprocessing.Value("i",10)
+R_NUM = multiprocessing.Value("i",100)
+G_NUM = multiprocessing.Value("i",100)
+B_NUM = multiprocessing.Value("i",100)
+Y_NUM = multiprocessing.Value("i",100)
 
 ARR_X = multiprocessing.Value("f",200.0)
 ARR_Y = multiprocessing.Value("f",200.0)
@@ -577,16 +598,16 @@ class Quid:
         self.size = 2
         if l_type == Type_e.RED:
             self.pH = 4
-            self.type = [1, 0]
+            self.type = cp.array([1, 0])
         if l_type == Type_e.BLUE:
             self.pH = 12
-            self.type = [0, 1]
+            self.type = cp.array([0, 1])
         if l_type == Type_e.GREEN:
             self.pH = 9
-            self.type = [-1, 0]
+            self.type = cp.array([-1, 0])
         if l_type == Type_e.YELLOW:
             self.pH = 5
-            self.type = [0, -1]
+            self.type = cp.array([0, -1])
         self.uuid = uuid.uuid4()
         
         global NEXT, quid_counter
@@ -640,7 +661,10 @@ def creation(redQuids, greenQuids, blueQuids, yellowQuids, ARR_X, ARR_Y):
 # B(0,1), Y(0,-1) => -1
 # ostale kombinacije daju 0
 def interaction(quid1, quid2):
-    r = np.dot(quid1.type, quid2.type)
+    if USECUDA:
+        r = cp.dot(quid1.type, quid2.type)
+    else:
+        r = np.dot(quid1.type, quid2.type)
     if r == 1:
         if PRINT_DEBUG:
             print("THEY HAD SEX")
@@ -727,8 +751,12 @@ class ControlLoop():
             for j in range(i): # svaki sa svakim - dovoljno je proći trokut
                 quid2 = listOfQuids[j]
                 if not quid2: continue
-                if np.linalg.norm(quid1.pos - quid2.pos) <= 5:
-                    interaction(quid1, quid2)
+                if USECUDA:
+                    if cp.linalg.norm(quid1.pos - quid2.pos) <= 5:
+                        interaction(quid1, quid2)
+                else:
+                    if np.linalg.norm(quid1.pos - quid2.pos) <= 5:
+                        interaction(quid1, quid2)
                 # kad već računamo svaki sa svakim,
                 # odredimo sve međusobne udaljenosti
                 # a poslje od uzmemo koji su bliži od zadane granice
