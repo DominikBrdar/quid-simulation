@@ -17,7 +17,7 @@ import os
 
 #region GLOBALS
 
-INDEX = 0
+PRINT_DEBUG = True
 NEXT = 0
 LAST = 0
 
@@ -509,10 +509,6 @@ def start_window():
 
 #endregion
 
-PRINT_DEBUG = False
-NEXT = -1
-LAST = 0
-
 class Type_e(IntEnum):
     RED = 1
     BLUE = 2
@@ -573,8 +569,7 @@ class Quid:
         LAST = (LAST + 1) % MAX_QUIDS.value
         del(self)
 
-listOfQuids = np.empty(MAX_QUIDS.value, dtype=Quid)
-freeSlots = np.arange(MAX_QUIDS.value)
+
 
 def creation(redQuids, greenQuids, blueQuids, yellowQuids, ARR_X, ARR_Y):
     for clr in Type_e:
@@ -623,7 +618,6 @@ def get_color_amount(clr: Type_e, redQuids, greenQuids, blueQuids, yellowQuids):
         return yellowQuids
 
 
-PRINT_DEBUG = False
 msiter = 0.0
 maxfps = 0.0
 
@@ -801,6 +795,8 @@ if __name__ == '__main__':
     # CONTROL CODE
     tick_upr_fun()
 
+    listOfQuids = np.empty(MAX_QUIDS.value, dtype=Quid)
+    freeSlots = np.arange(MAX_QUIDS.value)
     creation(R_NUM.value, G_NUM.value, B_NUM.value, Y_NUM.value, ARR_X.value, ARR_Y.value)
     controlLoop = ControlLoop(listOfQuids, R_NUM.value, G_NUM.value, B_NUM.value, Y_NUM.value, ARR_X.value, ARR_Y.value)
     # controlLoop.start()
