@@ -19,6 +19,7 @@ import os
 
 PRINT_DEBUG = False
 LOG_ITER_TIMES = True
+LOGFILE = "iter_times.log"
 NEXT = -1
 LAST = 0
 
@@ -69,10 +70,21 @@ max_quid = None
 end_msg = None
 #endregion
 
+class Logger:
+    def __init__(self, file):
+        self.f = open(file, 'w')
+        
+    def log(self, output):
+        self.f.write(output)
+    
+    def close(self):
+        self.f.close()
+
 
 #region GRAPHIC
 
 def quit(root: tk.Tk):
+    logger.close()
     os._exit(0)
     # global paused
     # paused = 1
@@ -624,9 +636,10 @@ def timing(f):
         ts = timer()
         result = f(*args, **kw)
         te = timer()
-        if PRINT_DEBUG or LOG_ITER_TIMES:
+        if PRINT_DEBUG:
             print(f"Iteration %d" % iter_counter, f"took: %2.8f sec" % (te-ts))
-            
+        if LOG_ITER_TIMES:
+            logger.log(f"Iteration %d " % iter_counter + f"took: %2.8f sec\n" % (te-ts))
         global msiter
         msiter.set('{:.8f}'.format(round((te-ts), 8)))
         maxfps.set('{:4.4f}'.format(round(1/(te-ts), 4)))
@@ -766,6 +779,8 @@ def tick_upr_fun():
 
 
 if __name__ == '__main__':
+    logger = Logger(LOGFILE)
+    
     # PARAM INPUT
     start_window()
 
@@ -847,6 +862,8 @@ if __name__ == '__main__':
             main_win.update()
     else:
         print("Exiting")
+        logger.close()
         os._exit(0)
 
+    logger.close()
     os._exit(0)
