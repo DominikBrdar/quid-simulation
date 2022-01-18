@@ -519,7 +519,7 @@ class Quid:
     def __init__(self, pos, l_type: Type_e = Type_e.RED):
         self.l_type = l_type 
         self.pos = pos
-        self.dir = np.random.rand(2)
+        self.dir = np.random.rand(2) 
         self.lifetime = 0
         self.size = 2
         if l_type == Type_e.RED:
@@ -541,7 +541,6 @@ class Quid:
         self.index = freeSlots[NEXT] 
         
         
-        
     def grow(self):
         if self.size < 5:
             self.size = self.size + 1
@@ -550,8 +549,8 @@ class Quid:
             listOfQuids[NEXT] = Quid(pos=self.pos - self.dir, l_type=self.l_type)
             NEXT = (NEXT + 1) % MAX_QUIDS.value
 
-    def move(self, temperature):
-       self.pos = self.pos + np.round(self.dir * temperature)
+    def move(self):
+       self.pos = self.pos + np.round(self.dir * TEMPERATURE.value)
 
     def get_color_code(self):
         if self.l_type == Type_e.RED:
@@ -579,7 +578,6 @@ def creation(redQuids, greenQuids, blueQuids, yellowQuids, ARR_X, ARR_Y):
             quid_y = np.random.randint(0, ARR_Y)
             listOfQuids[freeSlots[NEXT]] = Quid(pos=[quid_x, quid_y], l_type=clr)
 
-
 # može bolje
 # kao dot produkt vektora:  
 # isti => 1
@@ -601,12 +599,6 @@ def interaction(quid1, quid2):
         quid1.die()
         quid2.die()
         return 1
-    
-# za šta je ovo ??? 
-'''
-def __lt__(self, other):
-    return True if self.distance > other.distance else False
-'''
 
 def get_color_amount(clr: Type_e, redQuids, greenQuids, blueQuids, yellowQuids):
     if clr == Type_e.RED:
@@ -637,21 +629,12 @@ def timing(f):
     return wrap
 
 class ControlLoop():
-    def __init__(self, listOfQuids, R_NUM, G_NUM, B_NUM, Y_NUM, ARR_X, ARR_Y):
-        self.listOfQuids = listOfQuids
-        self.R_NUM = R_NUM
-        self.G_NUM = G_NUM
-        self.B_NUM = B_NUM
-        self.Y_NUM = Y_NUM
+    def __init__(self, ARR_X, ARR_Y):
         self.ARR_X = ARR_X
         self.ARR_Y = ARR_Y
 
     @timing
-    def run(self, temperature):
-        R_NUM = self.R_NUM
-        G_NUM = self.G_NUM
-        B_NUM = self.B_NUM
-        Y_NUM = self.Y_NUM
+    def run(self):
         ARR_X = self.ARR_X
         ARR_Y = self.ARR_Y
 
@@ -668,7 +651,7 @@ class ControlLoop():
         for i in range(MAX_QUIDS.value):
             tmp_quid = listOfQuids[i]
             if not tmp_quid: continue
-            tmp_quid.move(temperature)
+            tmp_quid.move()
             if tmp_quid.pos[0] < 0 or tmp_quid.pos[0] > ARR_X or tmp_quid.pos[1] < 0 or tmp_quid.pos[1] > ARR_Y:
                 tmp_quid.die()
                 if PRINT_DEBUG:
@@ -680,21 +663,20 @@ class ControlLoop():
                 if tmp_quid.lifetime % 20 == 0:
                     tmp_quid.die()
 
-        neighboursMatrix = np.zeros((MAX_QUIDS.value, MAX_QUIDS.value))
-
         # CUDA 2 main part of logic that need to be run on CUDA
         for i in range(MAX_QUIDS.value):
             quid1 = listOfQuids[i]
             if not quid1: continue
-            neighbour_cand = None
             for j in range(i): # svaki sa svakim - dovoljno je proći trokut
                 quid2 = listOfQuids[j]
                 if not quid2: continue
+                if np.linalg.norm(quid1.pos - quid2.pos) <= 5:
+                    interaction(quid1, quid2)
                 # kad već računamo svaki sa svakim,
                 # odredimo sve međusobne udaljenosti
                 # a poslje od uzmemo koji su bliži od zadane granice
                 # zašto ne bismo jednostavno odredili matricu susjedstva
-                neighboursMatrix[i][j] = np.linalg.norm(quid1.pos - quid2.pos)
+                
 
         # CUDA PART 2
         global phtotal, phkvadrant1, phkvadrant2, phkvadrant3, phkvadrant4, ph1count, ph2count, ph3count, ph4count
@@ -742,16 +724,6 @@ class ControlLoop():
             phkvadrant4 = round(7.0, 4)
         phtotal = phkvadrant3 + phkvadrant4 + phkvadrant2 + phkvadrant1
         phtotal = round((phtotal / 4), 4)
-
-
-        for i in range(MAX_QUIDS.value):
-            quid1 = listOfQuids[i]
-            if not quid1: continue
-            for j in range(i):
-                if neighboursMatrix[i][j] <= 5:
-                    quid2 = listOfQuids[j]
-                    if not quid2: continue
-                    interaction(quid1, quid2) 
                     
 
 
@@ -801,8 +773,7 @@ if __name__ == '__main__':
     listOfQuids = np.empty(MAX_QUIDS.value, dtype=Quid)
     freeSlots = np.arange(MAX_QUIDS.value)
     creation(R_NUM.value, G_NUM.value, B_NUM.value, Y_NUM.value, ARR_X.value, ARR_Y.value)
-    controlLoop = ControlLoop(listOfQuids, R_NUM.value, G_NUM.value, B_NUM.value, Y_NUM.value, ARR_X.value, ARR_Y.value)
-    # controlLoop.start()
+    controlLoop = ControlLoop(ARR_X.value, ARR_Y.value)
 
 
     # DRAWING CODE
@@ -819,7 +790,7 @@ if __name__ == '__main__':
             print("draw")
         draw_tick_UPR.clear()
 
-        controlLoop.run(TEMPERATURE.value)
+        controlLoop.run()
 
         for i in range(MAX_QUIDS.value):
             q = listOfQuids[i]
@@ -828,9 +799,6 @@ if __name__ == '__main__':
 
         while paused:
             main_win.update()
-
-        # quid_c.set('{:3.0f}'.format(len(listOfQuids)))
-        # iter_c.set('{:3.0f}'.format(iter_counter))
 
         # TODO
         quid_c.set(-1)
@@ -851,7 +819,6 @@ if __name__ == '__main__':
             main_canvas.delete("all")
             if centered:
                 main_canvas.create_rectangle(0, 0, ARR_X.value, ARR_Y.value, outline="black", fill=main_canvas["background"])
-
 
         draw_tick_UPR.wait()
 
