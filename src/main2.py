@@ -18,7 +18,7 @@ import os
 #region GLOBALS
 
 PRINT_DEBUG = True
-NEXT = 0
+NEXT = -1
 LAST = 0
 
 
@@ -537,8 +537,9 @@ class Quid:
         self.uuid = uuid.uuid4()
         
         global NEXT
-        self.index = freeSlots[NEXT]
         NEXT = (NEXT + 1) % MAX_QUIDS.value
+        self.index = freeSlots[NEXT] 
+        
         
         
     def grow(self):
@@ -654,6 +655,9 @@ class ControlLoop():
         ARR_X = self.ARR_X
         ARR_Y = self.ARR_Y
 
+        global iter_counter
+        iter_counter += 1
+        
         if PRINT_DEBUG:
             print("calc")
 
@@ -749,7 +753,6 @@ class ControlLoop():
                     if not quid2: continue
                     interaction(quid1, quid2) 
                     
-        return 1
 
 
 #region ZUGI
