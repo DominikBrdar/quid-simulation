@@ -19,7 +19,9 @@ import os
 
 PRINT_DEBUG = False
 LOG_ITER_TIMES = True
+LOG_EVENTS = False
 LOGFILE = "iter_times.log"
+#LOGFILE = "quid_count.log"
 NEXT = -1
 LAST = 0
 
@@ -531,6 +533,7 @@ class Type_e(IntEnum):
 
 class Quid:
     def __init__(self, pos, l_type: Type_e = Type_e.RED):
+        global NEXT
         self.l_type = l_type 
         self.pos = pos
         self.dir = np.random.uniform(-1,1,size=2)
@@ -550,19 +553,18 @@ class Quid:
             self.type = [0, -1]
         self.uuid = uuid.uuid4()
         
-        global NEXT, quid_counter
-        quid_counter += 1
         NEXT = (NEXT + 1) % MAX_QUIDS.value
-        self.index = freeSlots[NEXT] 
+        self.index = freeSlots[NEXT]    
         
         
     def grow(self):
+        global NEXT
         if self.size < 5:
             self.size = self.size + 1
         else:
-            global NEXT
-            listOfQuids[NEXT] = Quid(pos=self.pos - self.dir, l_type=self.l_type)
-            NEXT = (NEXT + 1) % MAX_QUIDS.value
+            if LOG_EVENTS:
+                logger.log("vegetational child\n")
+            listOfQuids[freeSlots[NEXT]] = Quid(pos=self.pos - self.dir, l_type=self.l_type)
 
     def move(self):
        self.pos = self.pos + np.round(self.dir * TEMPERATURE.value)
@@ -578,13 +580,11 @@ class Quid:
             return 'yellow'
 
     def die(self):
+        global LAST
         listOfQuids[self.index] = None
-        global LAST, quid_counter
-        quid_counter -= 1
         freeSlots[LAST] = self.index
         LAST = (LAST + 1) % MAX_QUIDS.value
         del(self)
-
 
 
 def creation(redQuids, greenQuids, blueQuids, yellowQuids, ARR_X, ARR_Y):
@@ -602,19 +602,17 @@ def creation(redQuids, greenQuids, blueQuids, yellowQuids, ARR_X, ARR_Y):
 # ostale kombinacije daju 0
 def interaction(quid1, quid2):
     r = np.dot(quid1.type, quid2.type)
+    
     if r == 1:
         if PRINT_DEBUG:
-            print("THEY HAD SEX")
+            ("THEY HAD SEX ")
         return Quid(pos=(quid1.pos+quid2.pos)//2, l_type=quid1.l_type)
     
-    elif r == -1:
-        return 0
-    else:
-        if PRINT_DEBUG:
-            print("THEY HAVE DESTROYED THEMSELVES")
+    elif r != 1:
+        if LOG_EVENTS:
+            logger.log("Quids of oposite types destroyed themselves")
         quid1.die()
         quid2.die()
-        return 1
 
 def get_color_amount(clr: Type_e, redQuids, greenQuids, blueQuids, yellowQuids):
     if clr == Type_e.RED:
@@ -671,32 +669,41 @@ class ControlLoop():
             if not tmp_quid: continue
             tmp_quid.move()
             if tmp_quid.pos[0] < 0 or tmp_quid.pos[0] > ARR_X or tmp_quid.pos[1] < 0 or tmp_quid.pos[1] > ARR_Y:
+                if LOG_EVENTS:
+                    logger.log("A quid has escaped\n")
                 tmp_quid.die()
-                if PRINT_DEBUG:
-                    print("A QUID HAS ESCAPED")
+                
             else:
                 tmp_quid.lifetime = tmp_quid.lifetime + 1
                 if tmp_quid.lifetime % 4 == 0:
                     tmp_quid.grow()
                 if tmp_quid.lifetime % 20 == 0:
                     tmp_quid.die()
+                    if LOG_EVENTS:
+                        logger.log("quid died from old age \n")
 
         # CUDA 2 main part of logic that need to be run on CUDA
         for i in range(MAX_QUIDS.value):
             quid1 = listOfQuids[i]
             if not quid1: continue
-            for j in range(i): # svaki sa svakim - dovoljno je proći trokut
+            md = 5
+            for j in range(MAX_QUIDS.value): # svaki sa svakim - dovoljno je proći trokut
                 quid2 = listOfQuids[j]
                 if not quid2: continue
-                if np.linalg.norm(quid1.pos - quid2.pos) <= 5:
-                    interaction(quid1, quid2)
+                d = np.linalg.norm(quid1.pos - quid2.pos)
+                if d < md: 
+                    md = d
+                    q2 = j
+            if md < 5:
+                interaction(quid1, listOfQuids[q2])
+                
                 # kad već računamo svaki sa svakim,
                 # odredimo sve međusobne udaljenosti
-                # a poslje od uzmemo koji su bliži od zadane granice
+                # a poslje oduzmemo koji su bliži od zadane granice
                 # zašto ne bismo jednostavno odredili matricu susjedstva
-                
+          
 
-        # CUDA PART 2
+        # CUDA PART 3
         global phtotal, phkvadrant1, phkvadrant2, phkvadrant3, phkvadrant4, ph1count, ph2count, ph3count, ph4count
         phkvadrant1 = 0.0
         phkvadrant2 = 0.0
@@ -754,7 +761,7 @@ event_tick_UPR = multiprocessing.Event()
 draw_tick_UPR = multiprocessing.Event()
 
 iter_counter = 0
-quid_counter = 0
+
 
 def tick_upr_fun():
     global event_tick_UPR
@@ -803,10 +810,9 @@ if __name__ == '__main__':
     max_quid.set(str(MAX_QUIDS.value))
     max_iter.set(str(MAX_ITER.value))
 
-    i = 0
     LOOP_ACTIVE = True
-    while LOOP_ACTIVE and LAST != NEXT:
-        i += 1
+    quid_counter = np.count_nonzero(listOfQuids)
+    while LOOP_ACTIVE and 0 < quid_counter < MAX_QUIDS.value:
         if PRINT_DEBUG:
             print("draw")
         draw_tick_UPR.clear()
@@ -821,8 +827,8 @@ if __name__ == '__main__':
         while paused:
             main_win.update()
 
-        # TODO
-        quid_c.set(str(quid_counter)) # BUG: racecondition
+        quid_counter = np.count_nonzero(listOfQuids)
+        quid_c.set(str(quid_counter))
         iter_c.set(str(iter_counter))
 
         ph1.set('{:.4f}'.format(round(phkvadrant1, 4)))
