@@ -519,7 +519,7 @@ class Quid:
     def __init__(self, pos, l_type: Type_e = Type_e.RED):
         self.l_type = l_type 
         self.pos = pos
-        self.dir = np.random.rand(2) 
+        self.dir = np.random.uniform(-1,1,size=2)
         self.lifetime = 0
         self.size = 2
         if l_type == Type_e.RED:
