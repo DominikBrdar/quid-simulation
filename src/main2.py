@@ -1,34 +1,25 @@
-
 #region IMPORT
 import tkinter as tk
 from tkinter import ttk
 
 import multiprocessing
 from enum import IntEnum
-import random
 from threading import Timer
-import heapq
-from copy import deepcopy
-import math
-
-from multiprocessing.managers import BaseManager
+from functools import wraps
+from timeit import default_timer as timer
+import numpy as np
 import uuid
-import sys
+
 import os
 
-from timeit import default_timer as timer
-from functools import wraps
 #endregion
 
 
 #region GLOBALS
 
-PRINT_DEBUG = False
-
-
-# listOfQuids = list()
-# listOfQuids = multiprocessing.Manager().list()
-listOfNeighbours = list()
+INDEX = 0
+NEXT = 0
+LAST = 0
 
 
 # INITIAL VALUES ENTERED FROM TKINTER
@@ -45,7 +36,6 @@ ARR_Y = multiprocessing.Value("f",200.0)
 
 SIM_SPEED = multiprocessing.Value("i", 100)
 TEMPERATURE = multiprocessing.Value("i", 10)
-
 
 
 DATA_ENTERED = False
@@ -76,27 +66,6 @@ quid_c = None
 max_quid = None
 
 end_msg = None
-
-msiter = 0.0
-maxfps = 0.0
-
-#endregion
-
-
-#region TIMING
-def timing(f):
-    @wraps(f)
-    def wrap(*args, **kw):
-        ts = timer()
-        result = f(*args, **kw)
-        te = timer()
-        if PRINT_DEBUG:
-            print(f"Func: {f.__name__}({args},{kw}) took: %2.8f sec" % (te-ts))
-        global msiter
-        msiter.set('{:.8f}'.format(round((te-ts), 8)))
-        maxfps.set('{:4.4f}'.format(round(1/(te-ts), 4)))
-        return result
-    return wrap
 #endregion
 
 
@@ -110,14 +79,11 @@ def quit(root: tk.Tk):
     # root.destroy()
     # sys.exit()
 
-
 def update_speed(val: int):
     SIM_SPEED.value = val
 
-
 def update_temp(val: int):
     TEMPERATURE.value = val
-
 
 saved_speed = 0
 paused = 0
@@ -131,7 +97,6 @@ def play_gl() -> int:
     else:
         return False
 
-
 def pause_gl():
     global paused, saved_speed
     if not paused:
@@ -142,18 +107,14 @@ def pause_gl():
     else:
         return False
 
-
 def is_paused():
     global paused
     return True if paused == 1 else False
 
-
 def _create_circle(self, x, y, r, **kwargs):
     return self.create_oval(x-r, y-r, x+r, y+r, **kwargs)
 
-
 tk.Canvas.create_circle = _create_circle
-
 
 def _create_circle_arc(self, x, y, r, **kwargs):
     if "start" in kwargs and "end" in kwargs:
@@ -161,9 +122,7 @@ def _create_circle_arc(self, x, y, r, **kwargs):
         del kwargs["end"]
     return self.create_arc(x-r, y-r, x+r, y+r, **kwargs)
 
-
 tk.Canvas.create_circle_arc = _create_circle_arc
-
 
 def canvas_test_circles(canvas: tk.Canvas):
     canvas.create_circle(100, 120, 50, fill="blue", outline="#DDD", width=4)
@@ -172,7 +131,6 @@ def canvas_test_circles(canvas: tk.Canvas):
     canvas.create_circle_arc(100, 120, 45, style="arc", outline="white", width=6, start=270 - 25, end=270 + 25)
     canvas.create_circle(150, 40, 20, fill="#BBB", outline="")
 
-
 def waitonend(state):
     global waitOnEnd
     if state == 1:
@@ -180,14 +138,12 @@ def waitonend(state):
     else:
         waitOnEnd = False
 
-
 def cntrset(state):
     global centered
     if state == 1:
         centered = False
     else:
         centered = True
-
 
 def main_window():
     def increase_speed():
@@ -432,7 +388,6 @@ def main_window():
 
     return window_main, graph_canvas
 
-
 def start_window():
     def clicked(root: tk.Tk):
         global MAX_TICS, MAX_ITER, R_NUM, G_NUM, B_NUM, Y_NUM, ARR_X, ARR_Y, SIM_SPEED
@@ -554,12 +509,9 @@ def start_window():
 
 #endregion
 
-
-#region ZUGI
-class Variable_e(IntEnum):
-    SIM_SPEED = 1
-    TEMPERATURE = 2
-
+PRINT_DEBUG = False
+NEXT = -1
+LAST = 0
 
 class Type_e(IntEnum):
     RED = 1
@@ -567,48 +519,42 @@ class Type_e(IntEnum):
     GREEN = 3
     YELLOW = 4
 
-
-def get_color_amount(clr: Type_e, redQuids, greenQuids, blueQuids, yellowQuids):
-    if clr == Type_e.RED:
-        return redQuids
-    elif clr == Type_e.GREEN:
-        return greenQuids
-    elif clr == Type_e.BLUE:
-        return blueQuids
-    elif clr == Type_e.YELLOW:
-        return yellowQuids
-
 class Quid:
-    def __init__(self, x, y, l_type: Type_e = Type_e.RED):
-        self.l_type = l_type
-        self.x = x
-        self.y = y
+    def __init__(self, pos, l_type: Type_e = Type_e.RED):
+        self.l_type = l_type 
+        self.pos = pos
+        self.dir = np.random.rand(2)
         self.lifetime = 0
         self.size = 2
         if l_type == Type_e.RED:
             self.pH = 4
+            self.type = [1, 0]
         if l_type == Type_e.BLUE:
             self.pH = 12
+            self.type = [0, 1]
         if l_type == Type_e.GREEN:
             self.pH = 9
+            self.type = [-1, 0]
         if l_type == Type_e.YELLOW:
             self.pH = 5
+            self.type = [0, -1]
         self.uuid = uuid.uuid4()
-        self.move_factor = random.random()
-        self.move_x_factor = round(random.uniform(-self.move_factor, self.move_factor), 4)
-        self.move_y_factor = round(random.uniform(-self.move_factor, self.move_factor), 4)
-
+        
+        global NEXT
+        self.index = freeSlots[NEXT]
+        NEXT = (NEXT + 1) % MAX_QUIDS.value
+        
+        
     def grow(self):
         if self.size < 5:
             self.size = self.size + 1
         else:
-            newQuid = Quid(x=self.x+10, y=self.y+10, l_type=self.l_type)
-            listOfQuids.append(newQuid)
+            global NEXT
+            listOfQuids[NEXT] = Quid(pos=self.pos - self.dir, l_type=self.l_type)
+            NEXT = (NEXT + 1) % MAX_QUIDS.value
 
-
-    def move(self):
-        self.x = self.x + self.move_x_factor * TEMPERATURE.value
-        self.y = self.y + self.move_y_factor * TEMPERATURE.value
+    def move(self, temperature):
+       self.pos = self.pos + np.round(self.dir * temperature)
 
     def get_color_code(self):
         if self.l_type == Type_e.RED:
@@ -621,40 +567,201 @@ class Quid:
             return 'yellow'
 
     def die(self):
-        listOfQuids.remove(self)
+        listOfQuids[self.index] = None
+        global LAST
+        freeSlots[LAST] = self.index
+        LAST = (LAST + 1) % MAX_QUIDS.value
         del(self)
 
+listOfQuids = np.empty(MAX_QUIDS.value, dtype=Quid)
+freeSlots = np.arange(MAX_QUIDS.value)
 
-class Neighbours:
-    def __init__(self,quid1,quid2,distance):
-        self.quid1 = quid1
-        self.quid2 = quid2
-        self.distance = distance
-
-    def interaction(self):
-        if self.quid1.l_type == self.quid2.l_type:
-            return Quid(x=(self.quid1.x + self.quid2.x) // 2, y=(self.quid2.y + self.quid1.y) // 2, l_type=self.quid1.l_type)
-        if (self.quid1.l_type == Type_e.RED and self.quid2.l_type == Type_e.GREEN) or (self.quid2.l_type == Type_e.RED and self.quid1.l_type == Type_e.GREEN):
-            return None
-        if (self.quid1.l_type == Type_e.BLUE and self.quid2.l_type == Type_e.YELLOW) or (self.quid1.l_type == Type_e.YELLOW and self.quid2.l_type == Type_e.BLUE):
-            return None
-        else:
-            return 1
-
-    def __lt__(self, other):
-        return True if self.distance > other.distance else False
-
-
-def creation(listOfQuids, redQuids, greenQuids, blueQuids, yellowQuids, ARR_X, ARR_Y):
+def creation(redQuids, greenQuids, blueQuids, yellowQuids, ARR_X, ARR_Y):
     for clr in Type_e:
         for i in range(0, get_color_amount(clr, redQuids, greenQuids, blueQuids, yellowQuids)):
-            quid_x = random.randint(0, ARR_X)
-            quid_y = random.randint(0, ARR_Y)
-            newQuid = Quid(x=quid_x, y=quid_y, l_type=clr)
-            listOfQuids.append(newQuid)
+            quid_x = np.random.randint(0, ARR_X)
+            quid_y = np.random.randint(0, ARR_Y)
+            listOfQuids[freeSlots[NEXT]] = Quid(pos=[quid_x, quid_y], l_type=clr)
 
-    return listOfQuids
 
+# može bolje
+# kao dot produkt vektora:  
+# isti => 1
+# R(1,0), G(-1,0) => -1
+# B(0,1), Y(0,-1) => -1
+# ostale kombinacije daju 0
+def interaction(quid1, quid2):
+    r = np.dot(quid1.type, quid2.type)
+    if r == 1:
+        if PRINT_DEBUG:
+            print("THEY HAD SEX")
+        return Quid(pos=(quid1.pos+quid2.pos)//2, l_type=quid1.l_type)
+    
+    elif r == -1:
+        return 0
+    else:
+        if PRINT_DEBUG:
+            print("THEY HAVE DESTROYED THEMSELVES")
+        quid1.die()
+        quid2.die()
+        return 1
+    
+# za šta je ovo ??? 
+'''
+def __lt__(self, other):
+    return True if self.distance > other.distance else False
+'''
+
+def get_color_amount(clr: Type_e, redQuids, greenQuids, blueQuids, yellowQuids):
+    if clr == Type_e.RED:
+        return redQuids
+    elif clr == Type_e.GREEN:
+        return greenQuids
+    elif clr == Type_e.BLUE:
+        return blueQuids
+    elif clr == Type_e.YELLOW:
+        return yellowQuids
+
+
+PRINT_DEBUG = False
+msiter = 0.0
+maxfps = 0.0
+
+def timing(f):
+    @wraps(f)
+    def wrap(*args, **kw):
+        ts = timer()
+        result = f(*args, **kw)
+        te = timer()
+        if PRINT_DEBUG:
+            print(f"Func: {f.__name__}({args},{kw}) took: %2.8f sec" % (te-ts))
+        global msiter
+        msiter.set('{:.8f}'.format(round((te-ts), 8)))
+        maxfps.set('{:4.4f}'.format(round(1/(te-ts), 4)))
+        return result
+    return wrap
+
+class ControlLoop():
+    def __init__(self, listOfQuids, R_NUM, G_NUM, B_NUM, Y_NUM, ARR_X, ARR_Y):
+        self.listOfQuids = listOfQuids
+        self.R_NUM = R_NUM
+        self.G_NUM = G_NUM
+        self.B_NUM = B_NUM
+        self.Y_NUM = Y_NUM
+        self.ARR_X = ARR_X
+        self.ARR_Y = ARR_Y
+
+    @timing
+    def run(self, temperature):
+        R_NUM = self.R_NUM
+        G_NUM = self.G_NUM
+        B_NUM = self.B_NUM
+        Y_NUM = self.Y_NUM
+        ARR_X = self.ARR_X
+        ARR_Y = self.ARR_Y
+
+        if PRINT_DEBUG:
+            print("calc")
+
+        # CUDA 1
+        # paralelno zbroji
+        # listu vektora pozicija i listu vektora smjerova gibanja
+        # paralelno svima provjeri jesu li u intervalu (području promatranja)
+        for i in range(MAX_QUIDS.value):
+            tmp_quid = listOfQuids[i]
+            if not tmp_quid: continue
+            tmp_quid.move(temperature)
+            if tmp_quid.pos[0] < 0 or tmp_quid.pos[0] > ARR_X or tmp_quid.pos[1] < 0 or tmp_quid.pos[1] > ARR_Y:
+                tmp_quid.die()
+                if PRINT_DEBUG:
+                    print("A QUID HAS ESCAPED")
+            else:
+                tmp_quid.lifetime = tmp_quid.lifetime + 1
+                if tmp_quid.lifetime % 4 == 0:
+                    tmp_quid.grow()
+                if tmp_quid.lifetime % 20 == 0:
+                    tmp_quid.die()
+
+        neighboursMatrix = np.zeros((MAX_QUIDS.value, MAX_QUIDS.value))
+
+        # CUDA 2 main part of logic that need to be run on CUDA
+        for i in range(MAX_QUIDS.value):
+            quid1 = listOfQuids[i]
+            if not quid1: continue
+            neighbour_cand = None
+            for j in range(i): # svaki sa svakim - dovoljno je proći trokut
+                quid2 = listOfQuids[j]
+                if not quid2: continue
+                # kad već računamo svaki sa svakim,
+                # odredimo sve međusobne udaljenosti
+                # a poslje od uzmemo koji su bliži od zadane granice
+                # zašto ne bismo jednostavno odredili matricu susjedstva
+                neighboursMatrix[i][j] = np.linalg.norm(quid1.pos - quid2.pos)
+
+        # CUDA PART 2
+        global phtotal, phkvadrant1, phkvadrant2, phkvadrant3, phkvadrant4, ph1count, ph2count, ph3count, ph4count
+        phkvadrant1 = 0.0
+        phkvadrant2 = 0.0
+        phkvadrant3 = 0.0
+        phkvadrant4 = 0.0
+        ph1count = 0.0
+        ph2count = 0.0
+        ph3count = 0.0
+        ph4count = 0.0
+        phtotal = 0.0
+
+        for i in range(MAX_QUIDS.value):
+            quid = listOfQuids[i]
+            if not quid: continue
+            if (ARR_X/2) < quid.pos[0] < ARR_X and (ARR_Y/2) < quid.pos[1] < ARR_Y:
+                phkvadrant1 = phkvadrant1 + quid.pH
+                ph1count = ph1count + 1
+            elif 0.0 < quid.pos[0] < (ARR_X/2) and (ARR_Y/2) < quid.pos[1] < ARR_Y:
+                phkvadrant2 = phkvadrant2 + quid.pH
+                ph2count = ph2count + 1
+            elif 0.0 < quid.pos[0] < (ARR_X/2) and 0.0 < quid.pos[1] < (ARR_Y/2):
+                phkvadrant3 = phkvadrant3 + quid.pH
+                ph3count = ph3count + 1
+            else:
+                phkvadrant4 = phkvadrant4 + quid.pH
+                ph4count = ph4count + 1
+                
+        if int(ph1count) != 0:
+            phkvadrant1 = round((phkvadrant1 / ph1count), 4)
+        else:
+            phkvadrant1 = round(7.0, 4)
+        if int(ph2count) != 0:
+            phkvadrant2 = round((phkvadrant2 / ph2count), 4)
+        else:
+            phkvadrant2 = round(7.0, 4)
+        if int(ph3count) != 0:
+            phkvadrant3 = round((phkvadrant3 / ph3count), 4)
+        else:
+            phkvadrant3 = round(7.0, 4)
+        if int(ph4count) != 0:
+            phkvadrant4 = round((phkvadrant4 / ph4count), 4)
+        else:
+            phkvadrant4 = round(7.0, 4)
+        phtotal = phkvadrant3 + phkvadrant4 + phkvadrant2 + phkvadrant1
+        phtotal = round((phtotal / 4), 4)
+
+
+        for i in range(MAX_QUIDS.value):
+            quid1 = listOfQuids[i]
+            if not quid1: continue
+            for j in range(i):
+                if neighboursMatrix[i][j] <= 5:
+                    quid2 = listOfQuids[j]
+                    if not quid2: continue
+                    interaction(quid1, quid2) 
+                    
+        return 1
+
+
+#region ZUGI
+class Variable_e(IntEnum):
+    SIM_SPEED = 1
+    TEMPERATURE = 2
 
 event_tick_UPR = multiprocessing.Event()
 draw_tick_UPR = multiprocessing.Event()
@@ -680,141 +787,6 @@ def tick_upr_fun():
         global done
         done = True
 
-
-def calculateDistance(x1,y1,x2,y2):
-    temp = ((abs(x2-x1))**2) + ((abs(y2-y1))**2)
-    temp = round(math.sqrt(temp), 4)
-    return temp
-
-
-class ControlLoop():
-    def __init__(self, listOfQuids, R_NUM, G_NUM, B_NUM, Y_NUM, ARR_X, ARR_Y):
-        self.listOfQuids = listOfQuids
-        self.R_NUM = R_NUM
-        self.G_NUM = G_NUM
-        self.B_NUM = B_NUM
-        self.Y_NUM = Y_NUM
-        self.ARR_X = ARR_X
-        self.ARR_Y = ARR_Y
-
-    @timing
-    def run(self):
-        R_NUM = self.R_NUM
-        G_NUM = self.G_NUM
-        B_NUM = self.B_NUM
-        Y_NUM = self.Y_NUM
-        ARR_X = self.ARR_X
-        ARR_Y = self.ARR_Y
-
-        global iter_counter
-        iter_counter += 1
-
-
-        if PRINT_DEBUG:
-            print("calc")
-
-        for tmp_quid in self.listOfQuids:
-            tmp_quid.move()
-            if tmp_quid.x < 0 or tmp_quid.x > ARR_X or tmp_quid.y < 0 or tmp_quid.y > ARR_Y:
-                self.listOfQuids.remove(tmp_quid)
-                if PRINT_DEBUG:
-                    print("A QUID HAS ESCAPED")
-                del tmp_quid # bug
-            else:
-                tmp_quid.lifetime = tmp_quid.lifetime + 1
-                if tmp_quid.lifetime % 4 == 0:
-                    tmp_quid.grow()
-                if tmp_quid.lifetime % 20 == 0:
-                    tmp_quid.die()
-
-
-        listOfNeighbours = []
-
-        # CUDA PART main part of logic that need to be run on CUDA
-        for elem1 in self.listOfQuids:
-            minDistance = ARR_X ** 2 + ARR_Y ** 2
-            neighbour_cand = None
-            for elem2 in self.listOfQuids:
-                if elem1.uuid == elem2.uuid:
-                    continue
-                else:
-                    distance = calculateDistance(elem1.x, elem1.y, elem2.x, elem2.y)
-                    assert distance < (ARR_X ** 2 + ARR_Y ** 2)
-                    if distance < minDistance:
-                        neighbour_cand = elem2
-                        minDistance = distance
-            if neighbour_cand:
-                neighbour = Neighbours(elem1, neighbour_cand, distance)
-                listOfNeighbours.append(neighbour)
-            if PRINT_DEBUG:
-                print("new neighbour created and the distance is for elem " + str(distance))
-
-        # CUDA PART 2
-        global phtotal, phkvadrant1, phkvadrant2, phkvadrant3, phkvadrant4, ph1count, ph2count, ph3count, ph4count
-        phkvadrant1 = 0.0
-        phkvadrant2 = 0.0
-        phkvadrant3 = 0.0
-        phkvadrant4 = 0.0
-        ph1count = 0.0
-        ph2count = 0.0
-        ph3count = 0.0
-        ph4count = 0.0
-        phtotal = 0.0
-
-        for quid in self.listOfQuids:
-            if (ARR_X/2) < quid.x < ARR_X and (ARR_Y/2) < quid.y < ARR_Y:
-                phkvadrant1 = phkvadrant1 + quid.pH
-                ph1count = ph1count + 1
-            elif 0.0 < quid.x < (ARR_X/2) and (ARR_Y/2) < quid.y < ARR_Y:
-                phkvadrant2 = phkvadrant2 + quid.pH
-                ph2count = ph2count + 1
-            elif 0.0 < quid.x < (ARR_X/2) and 0.0 < quid.y < (ARR_Y/2):
-                phkvadrant3 = phkvadrant3 + quid.pH
-                ph3count = ph3count + 1
-            else:
-                phkvadrant4 = phkvadrant4 + quid.pH
-                ph4count = ph4count + 1
-        if int(ph1count) != 0:
-            phkvadrant1 = round((phkvadrant1 / ph1count), 4)
-        else:
-            phkvadrant1 = round(7.0, 4)
-        if int(ph2count) != 0:
-            phkvadrant2 = round((phkvadrant2 / ph2count), 4)
-        else:
-            phkvadrant2 = round(7.0, 4)
-        if int(ph3count) != 0:
-            phkvadrant3 = round((phkvadrant3 / ph3count), 4)
-        else:
-            phkvadrant3 = round(7.0, 4)
-        if int(ph4count) != 0:
-            phkvadrant4 = round((phkvadrant4 / ph4count), 4)
-        else:
-            phkvadrant4 = round(7.0, 4)
-        phtotal = phkvadrant3 + phkvadrant4 + phkvadrant2 + phkvadrant1
-        phtotal = round((phtotal / 4), 4)
-
-
-
-        listOfNeighbours2 = deepcopy(listOfNeighbours)
-        heapq.heapify(listOfNeighbours2)
-        while len(listOfNeighbours2) > 0:
-            temp = heapq.heappop(listOfNeighbours2)
-            if temp.distance <= 5.0:
-                interactionType = temp.interaction()
-                if isinstance(interactionType, Quid):
-                    listOfNeighbours.append(interactionType) # BUG: u listu susjeda dodaje se quid
-                    if PRINT_DEBUG:
-                        print("THEY HAD SEX")
-                elif interactionType == 1:
-                    if temp.quid1 in listOfNeighbours:
-                        listOfNeighbours.remove(temp.quid1) # BUG: iz liste susjeda miču se quidovi
-                    if temp.quid2 in listOfNeighbours:
-                        listOfNeighbours.remove(temp.quid2)
-                    if PRINT_DEBUG:
-                        print("THEY HAVE DESTROYED THEMSELVES")
-            else:
-                break
-
 #endregion
 
 
@@ -829,7 +801,7 @@ if __name__ == '__main__':
     # CONTROL CODE
     tick_upr_fun()
 
-    listOfQuids = creation(list(), R_NUM.value, G_NUM.value, B_NUM.value, Y_NUM.value, ARR_X.value, ARR_Y.value)
+    creation(R_NUM.value, G_NUM.value, B_NUM.value, Y_NUM.value, ARR_X.value, ARR_Y.value)
     controlLoop = ControlLoop(listOfQuids, R_NUM.value, G_NUM.value, B_NUM.value, Y_NUM.value, ARR_X.value, ARR_Y.value)
     # controlLoop.start()
 
@@ -842,16 +814,18 @@ if __name__ == '__main__':
 
     i = 0
     LOOP_ACTIVE = True
-    while LOOP_ACTIVE and 0 < len(listOfQuids) < MAX_QUIDS.value:
+    while LOOP_ACTIVE and LAST != NEXT:
         i += 1
         if PRINT_DEBUG:
             print("draw")
         draw_tick_UPR.clear()
 
-        controlLoop.run()
+        controlLoop.run(TEMPERATURE.value)
 
-        for q in listOfQuids:
-            main_canvas.create_circle(q.x+5, q.y+5, q.size+5, fill=q.get_color_code())
+        for i in range(MAX_QUIDS.value):
+            q = listOfQuids[i]
+            if q:
+                main_canvas.create_circle(q.pos[0]+5, q.pos[1]+5, q.size+5, fill=q.get_color_code())
 
         while paused:
             main_win.update()
@@ -859,7 +833,8 @@ if __name__ == '__main__':
         # quid_c.set('{:3.0f}'.format(len(listOfQuids)))
         # iter_c.set('{:3.0f}'.format(iter_counter))
 
-        quid_c.set(str(len(listOfQuids)))
+        # TODO
+        quid_c.set(-1)
         iter_c.set(str(iter_counter))
 
         ph1.set('{:.4f}'.format(round(phkvadrant1, 4)))
@@ -874,7 +849,7 @@ if __name__ == '__main__':
             break
 
         if main_canvas:
-            main_canvas.delete("all")  # works
+            main_canvas.delete("all")
             if centered:
                 main_canvas.create_rectangle(0, 0, ARR_X.value, ARR_Y.value, outline="black", fill=main_canvas["background"])
 
@@ -886,7 +861,7 @@ if __name__ == '__main__':
         print(f"Reached maximum number of iterations ({MAX_ITER.value})")
         end_msg.set(f"Reached maximum number of iterations ({MAX_ITER.value})")
         main_win.update()
-    elif len(listOfQuids):
+    elif LAST == NEXT: # upitno dali radi
         print(f"Reached maximum number of Quids ({MAX_QUIDS.value})")
         end_msg.set(f"Reached maximum number of Quids ({MAX_QUIDS.value})")
         main_win.update()
@@ -895,13 +870,11 @@ if __name__ == '__main__':
         end_msg.set("No more Quids left")
         main_win.update()
 
-
     if waitOnEnd:
         while 1:
             main_win.update()
     else:
         print("Exiting")
         os._exit(0)
-
 
     os._exit(0)
