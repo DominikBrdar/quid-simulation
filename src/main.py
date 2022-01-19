@@ -10,6 +10,7 @@ from threading import Timer
 import heapq
 from copy import deepcopy
 import math
+from main2 import Logger
 
 from multiprocessing.managers import BaseManager
 import uuid
@@ -24,7 +25,9 @@ from functools import wraps
 #region GLOBALS
 
 PRINT_DEBUG = False
-
+LOG_ITER_TIMES = True
+LOG_EVENTS = False
+LOGFILE = "iter_times_main1.log"
 
 # listOfQuids = list()
 # listOfQuids = multiprocessing.Manager().list()
@@ -92,6 +95,8 @@ def timing(f):
         te = timer()
         if PRINT_DEBUG:
             print(f"Func: {f.__name__}({args},{kw}) took: %2.8f sec" % (te-ts))
+        if LOG_ITER_TIMES:
+            logger.log(f"Iteration %d " % iter_counter + f"took: %2.8f sec, " % (te-ts) + f"quid count = %d\n" %len(listOfQuids))
         global msiter
         msiter.set('{:.8f}'.format(round((te-ts), 8)))
         maxfps.set('{:4.4f}'.format(round(1/(te-ts), 4)))
@@ -103,6 +108,7 @@ def timing(f):
 #region GRAPHIC
 
 def quit(root: tk.Tk):
+    logger.close()
     os._exit(0)
     # global paused
     # paused = 1
@@ -731,6 +737,7 @@ class ControlLoop():
         listOfNeighbours = []
 
         # CUDA PART main part of logic that need to be run on CUDA
+
         for elem1 in self.listOfQuids:
             minDistance = ARR_X ** 2 + ARR_Y ** 2
             neighbour_cand = None
@@ -794,7 +801,6 @@ class ControlLoop():
         phtotal = round((phtotal / 4), 4)
 
 
-
         listOfNeighbours2 = deepcopy(listOfNeighbours)
         heapq.heapify(listOfNeighbours2)
         while len(listOfNeighbours2) > 0:
@@ -802,19 +808,20 @@ class ControlLoop():
             if temp.distance <= 5.0:
                 interactionType = temp.interaction()
                 if isinstance(interactionType, Quid):
-                    listOfNeighbours.append(interactionType) # BUG: u listu susjeda dodaje se quid
+                    listOfQuids.append(Quid(temp.quid1.x + temp.distance // 2, temp.quid1.y + temp.distance // 2, temp.quid1.l_type)) # BUG: u listu susjeda dodaje se quid
                     if PRINT_DEBUG:
                         print("THEY HAD SEX")
                 elif interactionType == 1:
                     if temp.quid1 in listOfNeighbours:
-                        listOfNeighbours.remove(temp.quid1) # BUG: iz liste susjeda miču se quidovi
+                        listOfQuids.remove(temp.quid1) # BUG: iz liste susjeda miču se quidovi
                     if temp.quid2 in listOfNeighbours:
-                        listOfNeighbours.remove(temp.quid2)
+                        listOfQuids.remove(temp.quid2)
                     if PRINT_DEBUG:
                         print("THEY HAVE DESTROYED THEMSELVES")
             else:
                 break
 
+        
 #endregion
 
 
@@ -826,6 +833,8 @@ if __name__ == '__main__':
     while not DATA_ENTERED:
         pass
 
+    logger = Logger(LOGFILE)
+    
     # CONTROL CODE
     tick_upr_fun()
 
@@ -901,7 +910,8 @@ if __name__ == '__main__':
             main_win.update()
     else:
         print("Exiting")
+        logger.close()
         os._exit(0)
 
-
+    logger.close()
     os._exit(0)
