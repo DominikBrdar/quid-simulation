@@ -12,14 +12,12 @@ import os
 
 import numpy as np
 
-from testing import move_cuda
-
 
 # pip install wheel
 # -> got to Python Packages (bottom of screen), search for 'cupy-cuda115' and click install (right side of screen)
 
 USECUDA = 0
-#import cupy as cp
+import cupy as cp
 
 
 """ memo
@@ -39,7 +37,7 @@ USECUDA = 0
 
 #region CUDA-TEST
 
-CUDATEST = 1
+CUDATEST = 0
 
 def cuda_fun():
     # added to path: C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29333\bin\Hostx64\x64
@@ -97,8 +95,8 @@ G_NUM = multiprocessing.Value("i",100)
 B_NUM = multiprocessing.Value("i",100)
 Y_NUM = multiprocessing.Value("i",100)
 
-ARR_X = multiprocessing.Value("f",600.0)
-ARR_Y = multiprocessing.Value("f",400.0)
+ARR_X = multiprocessing.Value("f",200.0)
+ARR_Y = multiprocessing.Value("f",200.0)
 
 SIM_SPEED = multiprocessing.Value("i", 100)
 TEMPERATURE = multiprocessing.Value("i", 10)
@@ -603,16 +601,16 @@ class Quid:
         self.size = 2
         if l_type == Type_e.RED:
             self.pH = 4
-            self.type = np.array([1, 0])
+            self.type = cp.array([1, 0])
         if l_type == Type_e.BLUE:
             self.pH = 12
-            self.type = np.array([0, 1])
+            self.type = cp.array([0, 1])
         if l_type == Type_e.GREEN:
             self.pH = 9
-            self.type = np.array([-1, 0])
+            self.type = cp.array([-1, 0])
         if l_type == Type_e.YELLOW:
             self.pH = 5
-            self.type = np.array([0, -1])
+            self.type = cp.array([0, -1])
         self.uuid = uuid.uuid4()
         
         NEXT = (NEXT + 1) % MAX_QUIDS.value
@@ -725,14 +723,13 @@ class ControlLoop():
             print("calc")
 
         # CUDA 1
-        move_cuda()
         # paralelno zbroji
         # listu vektora pozicija i listu vektora smjerova gibanja
         # paralelno svima provjeri jesu li u intervalu (području promatranja)
         for i in range(MAX_QUIDS.value):
             tmp_quid = listOfQuids[i]
             if not tmp_quid: continue
-            #tmp_quid.move()
+            tmp_quid.move()
             if tmp_quid.pos[0] < 0 or tmp_quid.pos[0] > ARR_X or tmp_quid.pos[1] < 0 or tmp_quid.pos[1] > ARR_Y:
                 if LOG_EVENTS:
                     logger.log("A quid has escaped\n")
@@ -850,9 +847,6 @@ def tick_upr_fun():
 #endregion
 
 
-listOfQuids = np.empty(MAX_QUIDS.value, dtype=Quid)
-freeSlots = np.arange(MAX_QUIDS.value)
-    
 if __name__ == '__main__':
     if CUDATEST:
         cuda_fun()
@@ -870,7 +864,8 @@ if __name__ == '__main__':
     # CONTROL CODE
     tick_upr_fun()
 
-    
+    listOfQuids = np.empty(MAX_QUIDS.value, dtype=Quid)
+    freeSlots = np.arange(MAX_QUIDS.value)
     creation(R_NUM.value, G_NUM.value, B_NUM.value, Y_NUM.value, ARR_X.value, ARR_Y.value)
     controlLoop = ControlLoop(ARR_X.value, ARR_Y.value)
 
