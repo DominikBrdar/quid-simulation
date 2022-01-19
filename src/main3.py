@@ -11,6 +11,7 @@ import uuid
 import os
 
 import numpy as np
+import cupy as cp
 
 
 # pip install wheel
@@ -37,7 +38,7 @@ USECUDA = 0
 
 #region CUDA-TEST
 
-CUDATEST = 1
+CUDATEST = 0
 
 def cuda_fun():
     # added to path: C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29333\bin\Hostx64\x64
@@ -616,8 +617,8 @@ class Quid:
         NEXT = (NEXT + 1) % MAX_QUIDS.value
         self.index = freeSlots[NEXT]    
         
-        posx[self.index // x][self.index % x] = self.pos[0]
-        dirx[self.index // x][self.index % x] = self.dir[0]
+        posx[self.index // y -1][self.index % y] = self.pos[0]
+        dirx[self.index // y -1][self.index % y] = self.dir[0]
         
         
     def grow(self):
@@ -657,7 +658,7 @@ def creation(redQuids, greenQuids, blueQuids, yellowQuids, ARR_X, ARR_Y):
         for i in range(0, get_color_amount(clr, redQuids, greenQuids, blueQuids, yellowQuids)):
             quid_x = np.random.randint(0, ARR_X)
             quid_y = np.random.randint(0, ARR_Y)
-            listOfQuids[freeSlots[NEXT]] = Quid(pos=[quid_x, quid_y], l_type=clr)
+            listOfQuids[freeSlots[NEXT]] = Quid(pos=np.array([quid_x, quid_y]), l_type=clr)
 
 # može bolje
 # kao dot produkt vektora:  
@@ -716,6 +717,7 @@ x = np.gcd(int(np.ceil(np.sqrt(MAX_QUIDS.value))), int(np.ceil(MAX_QUIDS.value))
 y = int(MAX_QUIDS.value / x)
 posx = cp.empty((x,y))
 dirx = cp.empty((x,y))
+
 def init_moving():
     k = 0
     for i in range(x):
@@ -914,7 +916,7 @@ if __name__ == '__main__':
     # CONTROL CODE
     tick_upr_fun()
 
-    
+    init_moving()
     creation(R_NUM.value, G_NUM.value, B_NUM.value, Y_NUM.value, ARR_X.value, ARR_Y.value)
     controlLoop = ControlLoop(ARR_X.value, ARR_Y.value)
 
@@ -938,7 +940,7 @@ if __name__ == '__main__':
         for i in range(MAX_QUIDS.value):
             q = listOfQuids[i]
             if q:
-                main_canvas.create_circle(q.pos[posx[q.index // x][q.index % x]]+5, q.pos[1]+5, q.size+5, fill=q.get_color_code())
+                main_canvas.create_circle(posx[q.index // y-1][q.index % y]+5, q.pos[1]+5, q.size+5, fill=q.get_color_code())
 
         while paused:
             main_win.update()
