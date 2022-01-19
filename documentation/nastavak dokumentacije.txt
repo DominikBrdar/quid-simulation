@@ -1,0 +1,38 @@
+U cilj rada dodati  na kraju
+	- osim simulacije, provodi se i usporedba izvršavanja simulacije sa određenim fiksnim parametrima
+	usporediti će se brzina sa i bez grafičke kartice.
+
+4.poglavlje početak
+Quidovi svakom iteracijom rastu za 1, te nakon dosezanja veličine od 8 događa se podijela quida na dva
+(kako se već zove proces) i veličina im se postavlja nazad na 1 budući da su utrošili resurse na stvaranje nove jedinke.
+
+4.1 Dodati početni ekran gdje korisnik unosi parametre
+
+4.2 poglavlje promijeniti da je udaljenost od 5 ustvari premiještena na 8
+	dvije slike tijekom dvije iteracije da se vide promijene ako se može uhvatiti
+	
+4.3 Provođenje simulacije i usporedba izvođenja
+Kako bi dokazali usporedbi perfomansi sa i bez GPU odabrani su početni inicijalni parametri simulacije.
+Parametri su postavljeni kao na slici (broj slike). Nakon postavljenih parametara izvodi se simulacija na 
+osobnom čak 3 osobna računala sa svojim vrijednostima u tablici (broj tablice). Bilježi se početak i kraj funckije run 
+unutar koje se vrši cijela simulacija unutar nje se izvodi kretanje,rast qudiova i interakcija qudiova.
+
+model računala
+			hp pavilion 15-bc009nm	(matija holik računalo)	(dominik brdar računalo)
+CPU + RAM
+GPU
+razlika
+
+Nakon simulacija dolazmi do zaključka da je izračun simulacije na sva tri računala izveo brže preko GPU u iznosima
+(IZNOSE KOJE DOBIJEMO)što je jedno od odličja CUDA za rad sa GPU.
+
+Zaključak
+Simulacija umjetnih i realnih molekula ili mikroorganizama jedno je od kompleksnim područja zbog svog iznimno velikog 
+broja jediniki i prikaza njihovih ponašanja kako bismo ih što bolje prikazali u svojoj prirodi. Znanstvenici uz pomoć
+modernih alata poput CUDA i sličnih alata olakšavaju izračune preko kojih prikazuju ove pojave. Korištenjem CPU i RAM-a 
+naspram korištenjem njih u kombinaciji sa GPU dobili bismo duži period izvršavanja čime ne bismo uštedjeli vrijeme. 
+Korištenjem CUDA uštedjeli smo vrijeme i resurse čime dolazi do dodatnog mjesta za napredak izvođenja simulacije sa
+potencijalnom novim parametrima.
+
+
+

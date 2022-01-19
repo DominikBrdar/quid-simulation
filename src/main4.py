@@ -1,4 +1,4 @@
-#region IMPORT
+# region IMPORT
 import tkinter as tk
 from tkinter import ttk
 
@@ -10,15 +10,18 @@ from timeit import default_timer as timer
 import uuid
 import os
 
-import numpy as np
+import pycuda.driver as cuda
+import pycuda.autoinit
+from pycuda.compiler import SourceModule
 
+import numpy as np
 
 # pip install wheel
 # -> got to Python Packages (bottom of screen), search for 'cupy-cuda115' and click install (right side of screen)
 
-USECUDA = 0
+USECUDA = 1
+SIMPLE = 1
 import cupy as cp
-
 
 """ memo
 # pip install --upgrade setuptools
@@ -27,21 +30,15 @@ import cupy as cp
 # pip install cupy-cuda115  #prebuilt binary for CUDA v11.5 -> PyCharm doesn't see it
 """
 
+# endregion
 
-
-
-
-
-
-#endregion
-
-#region CUDA-TEST
+# region CUDA-TEST
 
 CUDATEST = 0
 
+
 def cuda_fun():
     # added to path: C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29333\bin\Hostx64\x64
-    # new: C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\bin\Hostx64\x64
 
     import pycuda.driver as cuda
     import pycuda.autoinit
@@ -73,35 +70,55 @@ def cuda_fun():
     print(a)
 
 
-#endregion
+def moving_quids():
+    global arr, a_moved, a_gpu, b_gpu, b_cpu
+
+    cuda.memcpy_htod(a_gpu, arr)
+
+    cuda.memcpy_htod(b_gpu, b_cpu)
+
+    mod = SourceModule("""
+      __global__ void move(int *a, int *b)
+      {
+        int idx = threadIdx.x + threadIdx.y*4;
+        a[idx] += b[idx];
+      }
+      """)
+
+    func = mod.get_function("move")
+    func(a_gpu, b_gpu, block=(arr.shape[0], 2, 1))
+
+    a_moved = np.empty_like(a)
+    cuda.memcpy_dtoh(a_moved, a_gpu)
+    # print(a_moved)
+    arr = a_moved
 
 
-#region GLOBALS
+# endregion
+
+
+# region GLOBALS
 
 PRINT_DEBUG = False
 LOG_ITER_TIMES = True
-LOG_EVENTS = False
 LOGFILE = "iter_times.log"
-#LOGFILE = "quid_count.log"
 NEXT = -1
 LAST = 0
 
-
 # INITIAL VALUES ENTERED FROM TKINTER
-MAX_QUIDS = multiprocessing.Value("i",2000)
-MAX_ITER = multiprocessing.Value("i",2000)
+MAX_QUIDS = multiprocessing.Value("i", 2000)
+MAX_ITER = multiprocessing.Value("i", 2000)
 
-R_NUM = multiprocessing.Value("i",100)
-G_NUM = multiprocessing.Value("i",100)
-B_NUM = multiprocessing.Value("i",100)
-Y_NUM = multiprocessing.Value("i",100)
+R_NUM = multiprocessing.Value("i", 10)
+G_NUM = multiprocessing.Value("i", 10)
+B_NUM = multiprocessing.Value("i", 10)
+Y_NUM = multiprocessing.Value("i", 10)
 
-ARR_X = multiprocessing.Value("f",200.0)
-ARR_Y = multiprocessing.Value("f",200.0)
+ARR_X = multiprocessing.Value("f", 200.0)
+ARR_Y = multiprocessing.Value("f", 200.0)
 
 SIM_SPEED = multiprocessing.Value("i", 100)
 TEMPERATURE = multiprocessing.Value("i", 10)
-
 
 DATA_ENTERED = False
 waitOnEnd = False
@@ -124,27 +141,43 @@ ph3 = None
 ph4 = None
 phT = None
 
-
 iter_c = None
 max_iter = None
 quid_c = None
 max_quid = None
 
 end_msg = None
-#endregion
+
+a = None
+arr = None
+a_moved = None
+
+a_gpu = None
+b_cpu = None
+b_gpu = None
+
+
+# endregion
+
+
+import math
+def calculateDistance(x1,y1,x2,y2):
+    temp = ((abs(x2-x1))**2) + ((abs(y2-y1))**2)
+    temp = round(math.sqrt(temp), 4)
+    return temp
 
 class Logger:
     def __init__(self, file):
         self.f = open(file, 'w')
-        
+
     def log(self, output):
         self.f.write(output)
-    
+
     def close(self):
         self.f.close()
 
 
-#region GRAPHIC
+# region GRAPHIC
 
 def quit(root: tk.Tk):
     logger.close()
@@ -155,14 +188,19 @@ def quit(root: tk.Tk):
     # root.destroy()
     # sys.exit()
 
+
 def update_speed(val: int):
     SIM_SPEED.value = val
+
 
 def update_temp(val: int):
     TEMPERATURE.value = val
 
+
 saved_speed = 0
 paused = 0
+
+
 def play_gl() -> int:
     global paused, saved_speed
     if paused:
@@ -172,6 +210,7 @@ def play_gl() -> int:
         return saved_speed
     else:
         return False
+
 
 def pause_gl():
     global paused, saved_speed
@@ -183,22 +222,28 @@ def pause_gl():
     else:
         return False
 
+
 def is_paused():
     global paused
     return True if paused == 1 else False
 
+
 def _create_circle(self, x, y, r, **kwargs):
-    return self.create_oval(x-r, y-r, x+r, y+r, **kwargs)
+    return self.create_oval(x - r, y - r, x + r, y + r, **kwargs)
+
 
 tk.Canvas.create_circle = _create_circle
+
 
 def _create_circle_arc(self, x, y, r, **kwargs):
     if "start" in kwargs and "end" in kwargs:
         kwargs["extent"] = kwargs["end"] - kwargs["start"]
         del kwargs["end"]
-    return self.create_arc(x-r, y-r, x+r, y+r, **kwargs)
+    return self.create_arc(x - r, y - r, x + r, y + r, **kwargs)
+
 
 tk.Canvas.create_circle_arc = _create_circle_arc
+
 
 def canvas_test_circles(canvas: tk.Canvas):
     canvas.create_circle(100, 120, 50, fill="blue", outline="#DDD", width=4)
@@ -207,6 +252,7 @@ def canvas_test_circles(canvas: tk.Canvas):
     canvas.create_circle_arc(100, 120, 45, style="arc", outline="white", width=6, start=270 - 25, end=270 + 25)
     canvas.create_circle(150, 40, 20, fill="#BBB", outline="")
 
+
 def waitonend(state):
     global waitOnEnd
     if state == 1:
@@ -214,12 +260,14 @@ def waitonend(state):
     else:
         waitOnEnd = False
 
+
 def cntrset(state):
     global centered
     if state == 1:
         centered = False
     else:
         centered = True
+
 
 def main_window():
     def increase_speed():
@@ -267,9 +315,6 @@ def main_window():
         if succ:
             lbl_value["text"] = f"{0}"
 
-
-
-
     window_main = tk.Tk()
     window_main.title("Quid's Life")
     window_main.resizable(False, False)
@@ -277,17 +322,14 @@ def main_window():
     window_main.rowconfigure(1, minsize=500, weight=1)
     window_main.columnconfigure(0, minsize=500, weight=1)
 
-
     graph_canvas = tk.Canvas(window_main, background="lightblue", bd=2, confine=True, relief="groove")
     graph_canvas.config(width=ARR_X.value, height=ARR_Y.value)
-
 
     fr_buttons = tk.Frame(window_main)
     fr_buttons_sub = tk.Frame(fr_buttons)
     btn_open = tk.Button(fr_buttons_sub, text="Play", command=play, height=1, width=8)
     btn_save = tk.Button(fr_buttons_sub, text="Pause", command=pause, height=1, width=8)
     btn_quit = tk.Button(fr_buttons_sub, text="Quit", fg="red", command=lambda: quit(window_main), height=1, width=8)
-
 
     btn_open.grid(row=0, column=0, padx=5, pady=5)
     btn_save.grid(row=0, column=1, padx=5)
@@ -301,8 +343,6 @@ def main_window():
         graph_canvas.grid(row=1, column=0, sticky="nsew")
     else:
         graph_canvas.grid(row=1, column=0)
-
-
 
     spd = tk.Frame(fr_buttons)
 
@@ -323,8 +363,6 @@ def main_window():
 
     spd.grid(row=0, column=3, padx=40, sticky="ns")
 
-
-
     tmp = tk.Frame(fr_buttons)
 
     lbl_result = tk.Label(master=tmp, text="Temp [K]:")
@@ -343,7 +381,6 @@ def main_window():
     btn_increase.grid(row=0, column=3, sticky="nsew")
 
     tmp.grid(row=0, column=4, padx=40, sticky="ns")
-
 
     ph = tk.Frame(fr_buttons)
 
@@ -385,8 +422,6 @@ def main_window():
     lT.grid(row=4, column=1, padx=5, sticky="ns")
 
     ph.grid(row=1, column=0, padx=5, sticky="nsew")
-
-
 
     info = tk.Frame(fr_buttons)
 
@@ -437,16 +472,12 @@ def main_window():
 
     info.grid(row=1, column=1, padx=5, sticky="nsew")
 
-
-
     input_p = tk.Frame(fr_buttons)
     woe_var = tk.IntVar()
     waitOE = tk.Checkbutton(input_p, text="Pause on end", variable=woe_var, command=lambda: waitonend(woe_var.get())
-                            ,height=5, width=20)
+                            , height=5, width=20)
     waitOE.pack()
     input_p.grid(row=1, column=2, padx=5, sticky="nsew")
-
-
 
     fin_msg = tk.Frame(fr_buttons)
 
@@ -464,6 +495,7 @@ def main_window():
     # window_main.mainloop()
 
     return window_main, graph_canvas
+
 
 def start_window():
     def clicked(root: tk.Tk):
@@ -486,8 +518,6 @@ def start_window():
         root.destroy()
         DATA_ENTERED = True
         # main_window()
-
-
 
     window = tk.Tk()
     window.resizable(False, False)
@@ -579,12 +609,12 @@ def start_window():
 
     frame_cont.pack()
 
-
     window.title('Parameter input')
     window.geometry("600x250+10+10")
     window.mainloop()
 
-#endregion
+
+# endregion
 
 class Type_e(IntEnum):
     RED = 1
@@ -592,12 +622,12 @@ class Type_e(IntEnum):
     GREEN = 3
     YELLOW = 4
 
+
 class Quid:
     def __init__(self, pos, l_type: Type_e = Type_e.RED):
-        global NEXT
-        self.l_type = l_type 
-        self.pos = pos
-        self.dir = np.random.uniform(-1,1,size=2)
+        self.l_type = l_type
+        self.pos = pos  # cp.array(pos)
+        self.dir = np.random.uniform(-1, 1, size=2)
         self.lifetime = 0
         self.size = 2
         if l_type == Type_e.RED:
@@ -612,23 +642,36 @@ class Quid:
         if l_type == Type_e.YELLOW:
             self.pH = 5
             self.type = cp.array([0, -1])
+
         self.uuid = uuid.uuid4()
-        
+
+        global NEXT, quid_counter
+        quid_counter += 1
         NEXT = (NEXT + 1) % MAX_QUIDS.value
-        self.index = freeSlots[NEXT]    
-        
-        
+        self.index = freeSlots[NEXT]
+        listOfQuids.append(self)
+
+        """
+        quid_counter += 1
+        NEXT = (NEXT + 1) % MAX_QUIDS.value
+        self.index = freeSlots[NEXT]
+        listOfQuids.append(self)
+        """
+
     def grow(self):
-        global NEXT
         if self.size < 5:
             self.size = self.size + 1
         else:
-            if LOG_EVENTS:
-                logger.log("vegetational child\n")
-            listOfQuids[freeSlots[NEXT]] = Quid(pos=self.pos - self.dir, l_type=self.l_type)
+            global NEXT
+            arrayOfQuids[NEXT] = Quid(pos=self.pos - self.dir, l_type=self.l_type)
+            NEXT = (NEXT + 1) % MAX_QUIDS.value
+
+            """
+            tmp = Quid(pos=self.pos - self.dir, l_type=self.l_type)
+            """
 
     def move(self):
-       self.pos = self.pos + np.round(self.dir * TEMPERATURE.value)
+        self.pos = self.pos + np.round(self.dir * TEMPERATURE.value)
 
     def get_color_code(self):
         if self.l_type == Type_e.RED:
@@ -641,11 +684,14 @@ class Quid:
             return 'yellow'
 
     def die(self):
-        global LAST
-        listOfQuids[self.index] = None
+        arrayOfQuids[self.index] = None
+        if self in listOfQuids:
+            listOfQuids.remove(self)
+        global LAST, quid_counter
+        quid_counter -= 1
         freeSlots[LAST] = self.index
         LAST = (LAST + 1) % MAX_QUIDS.value
-        del(self)
+        del (self)
 
 
 def creation(redQuids, greenQuids, blueQuids, yellowQuids, ARR_X, ARR_Y):
@@ -653,10 +699,13 @@ def creation(redQuids, greenQuids, blueQuids, yellowQuids, ARR_X, ARR_Y):
         for i in range(0, get_color_amount(clr, redQuids, greenQuids, blueQuids, yellowQuids)):
             quid_x = np.random.randint(0, ARR_X)
             quid_y = np.random.randint(0, ARR_Y)
-            listOfQuids[freeSlots[NEXT]] = Quid(pos=[quid_x, quid_y], l_type=clr)
+            arrayOfQuids[freeSlots[NEXT]] = [quid_x, quid_y]
+            newQuid = Quid(pos=[quid_x, quid_y], l_type=clr)
+            # listOfQuids.append(newQuid)   # unnecessary, done in constructor
+
 
 # može bolje
-# kao dot produkt vektora:  
+# kao dot produkt vektora:
 # isti => 1
 # R(1,0), G(-1,0) => -1
 # B(0,1), Y(0,-1) => -1
@@ -668,14 +717,20 @@ def interaction(quid1, quid2):
         r = np.dot(quid1.type, quid2.type)
     if r == 1:
         if PRINT_DEBUG:
-            ("THEY HAD SEX ")
-        return Quid(pos=(quid1.pos+quid2.pos)//2, l_type=quid1.l_type)
-    
-    elif r != 1:
-        if LOG_EVENTS:
-            logger.log("Quids of oposite types destroyed themselves")
+            print("THEY HAD SEX")
+        x1, y1, x2, y2 = quid1.pos[0], quid1.pos[1], quid2.pos[0], quid2.pos[1]
+
+        return Quid(pos=[round((x1+x2)/2,4),round((y1+y2)/2,4)], l_type=quid1.l_type)
+
+    elif r == -1:
+        return 0
+    else:
+        if PRINT_DEBUG:
+            print("THEY HAVE DESTROYED THEMSELVES")
         quid1.die()
         quid2.die()
+        return 1
+
 
 def get_color_amount(clr: Type_e, redQuids, greenQuids, blueQuids, yellowQuids):
     if clr == Type_e.RED:
@@ -691,6 +746,7 @@ def get_color_amount(clr: Type_e, redQuids, greenQuids, blueQuids, yellowQuids):
 msiter = 0.0
 maxfps = 0.0
 
+
 def timing(f):
     @wraps(f)
     def wrap(*args, **kw):
@@ -698,14 +754,16 @@ def timing(f):
         result = f(*args, **kw)
         te = timer()
         if PRINT_DEBUG:
-            print(f"Iteration %d" % iter_counter, f"took: %2.8f sec" % (te-ts))
+            print(f"Iteration %d" % iter_counter, f"took: %2.8f sec" % (te - ts))
         if LOG_ITER_TIMES:
-            logger.log(f"Iteration %d " % iter_counter + f"took: %2.8f sec\n" % (te-ts))
+            logger.log(f"Iteration %d " % iter_counter + f"took: %2.8f sec\n" % (te - ts))
         global msiter
-        msiter.set('{:.8f}'.format(round((te-ts), 8)))
-        maxfps.set('{:4.4f}'.format(round(1/(te-ts), 4)))
+        msiter.set('{:.8f}'.format(round((te - ts), 8)))
+        maxfps.set('{:4.4f}'.format(round(1 / (te - ts), 4)))
         return result
+
     return wrap
+
 
 class ControlLoop():
     def __init__(self, ARR_X, ARR_Y):
@@ -719,7 +777,7 @@ class ControlLoop():
 
         global iter_counter
         iter_counter += 1
-        
+
         if PRINT_DEBUG:
             print("calc")
 
@@ -727,46 +785,46 @@ class ControlLoop():
         # paralelno zbroji
         # listu vektora pozicija i listu vektora smjerova gibanja
         # paralelno svima provjeri jesu li u intervalu (području promatranja)
-        for i in range(MAX_QUIDS.value):
-            tmp_quid = listOfQuids[i]
-            if not tmp_quid: continue
-            tmp_quid.move()
+
+        # ovo se da u cudi utrpat ova for petlja
+        moving_quids()
+
+        for tmp_quid in listOfQuids:
             if tmp_quid.pos[0] < 0 or tmp_quid.pos[0] > ARR_X or tmp_quid.pos[1] < 0 or tmp_quid.pos[1] > ARR_Y:
-                if LOG_EVENTS:
-                    logger.log("A quid has escaped\n")
                 tmp_quid.die()
-                
+                if PRINT_DEBUG:
+                    print("A QUID HAS ESCAPED")
             else:
                 tmp_quid.lifetime = tmp_quid.lifetime + 1
                 if tmp_quid.lifetime % 4 == 0:
                     tmp_quid.grow()
                 if tmp_quid.lifetime % 20 == 0:
                     tmp_quid.die()
-                    if LOG_EVENTS:
-                        logger.log("quid died from old age \n")
 
         # CUDA 2 main part of logic that need to be run on CUDA
-        for i in range(MAX_QUIDS.value):
-            quid1 = listOfQuids[i]
-            if not quid1: continue
-            md = 5
-            for j in range(MAX_QUIDS.value): # svaki sa svakim - dovoljno je proći trokut
-                quid2 = listOfQuids[j]
-                if not quid2: continue
-                d = np.linalg.norm(quid1.pos - quid2.pos)
-                if d < md: 
-                    md = d
-                    q2 = j
-            if md < 5:
-                interaction(quid1, listOfQuids[q2])
 
+        # ove napravit onu tablicu koju Matija zeli
+        for quid1 in listOfQuids:
+            if not quid1: continue
+            for quid2 in listOfQuids:  # svaki sa svakim - dovoljno je proći trokut
+                if (not quid2) or (quid1.uuid == quid2.uuid):
+                    continue
+                if SIMPLE:
+                    x1,y1,x2,y2 = quid1.pos[0], quid1.pos[1], quid2.pos[0], quid2.pos[1]
+                    if calculateDistance(x1,y1,x2,y2) <= 5.0:
+                        interaction(quid1, quid2)
+                else:
+                    if USECUDA:
+                        if cp.linalg.norm(quid1.pos - quid2.pos) <= 5:
+                            interaction(quid1, quid2)
+                    else:
+                        if np.linalg.norm(quid1.pos - quid2.pos) <= 5:
+                            interaction(quid1, quid2)
                 # kad već računamo svaki sa svakim,
                 # odredimo sve međusobne udaljenosti
-                # a poslje oduzmemo koji su bliži od zadane granice
+                # a poslje od uzmemo koji su bliži od zadane granice
                 # zašto ne bismo jednostavno odredili matricu susjedstva
-          
 
-        # CUDA PART 3
         global phtotal, phkvadrant1, phkvadrant2, phkvadrant3, phkvadrant4, ph1count, ph2count, ph3count, ph4count
         phkvadrant1 = 0.0
         phkvadrant2 = 0.0
@@ -778,22 +836,21 @@ class ControlLoop():
         ph4count = 0.0
         phtotal = 0.0
 
-        for i in range(MAX_QUIDS.value):
-            quid = listOfQuids[i]
+        for quid in listOfQuids:
             if not quid: continue
-            if (ARR_X/2) < quid.pos[0] < ARR_X and (ARR_Y/2) < quid.pos[1] < ARR_Y:
+            if (ARR_X / 2) < quid.pos[0] < ARR_X and (ARR_Y / 2) < quid.pos[1] < ARR_Y:
                 phkvadrant1 = phkvadrant1 + quid.pH
                 ph1count = ph1count + 1
-            elif 0.0 < quid.pos[0] < (ARR_X/2) and (ARR_Y/2) < quid.pos[1] < ARR_Y:
+            elif 0.0 < quid.pos[0] < (ARR_X / 2) and (ARR_Y / 2) < quid.pos[1] < ARR_Y:
                 phkvadrant2 = phkvadrant2 + quid.pH
                 ph2count = ph2count + 1
-            elif 0.0 < quid.pos[0] < (ARR_X/2) and 0.0 < quid.pos[1] < (ARR_Y/2):
+            elif 0.0 < quid.pos[0] < (ARR_X / 2) and 0.0 < quid.pos[1] < (ARR_Y / 2):
                 phkvadrant3 = phkvadrant3 + quid.pH
                 ph3count = ph3count + 1
             else:
                 phkvadrant4 = phkvadrant4 + quid.pH
                 ph4count = ph4count + 1
-                
+
         if int(ph1count) != 0:
             phkvadrant1 = round((phkvadrant1 / ph1count), 4)
         else:
@@ -812,24 +869,25 @@ class ControlLoop():
             phkvadrant4 = round(7.0, 4)
         phtotal = phkvadrant3 + phkvadrant4 + phkvadrant2 + phkvadrant1
         phtotal = round((phtotal / 4), 4)
-                    
 
 
-#region ZUGI
+# region ZUGI
 class Variable_e(IntEnum):
     SIM_SPEED = 1
     TEMPERATURE = 2
+
 
 event_tick_UPR = multiprocessing.Event()
 draw_tick_UPR = multiprocessing.Event()
 
 iter_counter = 0
+quid_counter = 0
 
 
 def tick_upr_fun():
     global event_tick_UPR
     # event_tick_UPR.set()    # logic
-    draw_tick_UPR.set()     # draw
+    draw_tick_UPR.set()  # draw
 
     if PRINT_DEBUG:
         print("tick")
@@ -840,12 +898,13 @@ def tick_upr_fun():
     # create timer for controlling UPR
     # -> timer calls function which signals with events to unblock thread
     if iter_counter < MAX_ITER.value:
-        Timer((SIM_SPEED.value/1000), tick_upr_fun).start()# /1000 for s -> ms
+        Timer((SIM_SPEED.value / 1000), tick_upr_fun).start()  # /1000 for s -> ms
     else:
         global done
         done = True
 
-#endregion
+
+# endregion
 
 
 if __name__ == '__main__':
@@ -854,7 +913,7 @@ if __name__ == '__main__':
         exit(0)
 
     logger = Logger(LOGFILE)
-    
+
     # PARAM INPUT
     start_window()
 
@@ -865,11 +924,27 @@ if __name__ == '__main__':
     # CONTROL CODE
     tick_upr_fun()
 
-    listOfQuids = np.empty(MAX_QUIDS.value, dtype=Quid)
+    arrayOfQuids = np.empty(MAX_QUIDS.value, dtype=Quid)
+    listOfQuids = []
     freeSlots = np.arange(MAX_QUIDS.value)
     creation(R_NUM.value, G_NUM.value, B_NUM.value, Y_NUM.value, ARR_X.value, ARR_Y.value)
     controlLoop = ControlLoop(ARR_X.value, ARR_Y.value)
 
+    a = []
+    for quid in listOfQuids:
+        if quid is None:
+            break
+        a.append(quid.pos)
+
+    arr = np.array(a)
+    arr = arr.astype(np.int32)
+
+    a_gpu = cuda.mem_alloc(arr.nbytes)
+
+    b_cpu = np.random.randint(-2, 2, size=(MAX_QUIDS.value, 2))
+    b_cpu = b_cpu.astype(np.int32)
+
+    b_gpu = cuda.mem_alloc(b_cpu.nbytes)
 
     # DRAWING CODE
     # canvas_test_circles(main_canvas)  # works
@@ -877,25 +952,28 @@ if __name__ == '__main__':
     max_quid.set(str(MAX_QUIDS.value))
     max_iter.set(str(MAX_ITER.value))
 
+    i = 0
     LOOP_ACTIVE = True
-    quid_counter = np.count_nonzero(listOfQuids)
-    while LOOP_ACTIVE and 0 < quid_counter < MAX_QUIDS.value:
+    while LOOP_ACTIVE and LAST != NEXT:
+        i += 1
         if PRINT_DEBUG:
             print("draw")
         draw_tick_UPR.clear()
 
         controlLoop.run()
 
-        for i in range(MAX_QUIDS.value):
-            q = listOfQuids[i]
-            if q:
-                main_canvas.create_circle(q.pos[0]+5, q.pos[1]+5, q.size+5, fill=q.get_color_code())
+        for quid in listOfQuids:
+            arrayOfQuids[quid.index] = a_moved[quid.index]
+            quid.pos = a_moved[quid.index]
+            if quid:
+                main_canvas.create_circle(int(a_moved[quid.index][0]) + 5, int(a_moved[quid.index][1]) + 5, quid.size + 5,
+                                          fill=quid.get_color_code())
 
         while paused:
             main_win.update()
 
-        quid_counter = np.count_nonzero(listOfQuids)
-        quid_c.set(str(quid_counter))
+        # TODO
+        quid_c.set(str(quid_counter))  # BUG: racecondition
         iter_c.set(str(iter_counter))
 
         ph1.set('{:.4f}'.format(round(phkvadrant1, 4)))
@@ -910,18 +988,18 @@ if __name__ == '__main__':
             break
 
         if main_canvas:
-            main_canvas.delete("all") # TODO debug on exit (X)
+            main_canvas.delete("all")  # TODO debug on exit (X)
             if centered:
-                main_canvas.create_rectangle(0, 0, ARR_X.value, ARR_Y.value, outline="black", fill=main_canvas["background"])
+                main_canvas.create_rectangle(0, 0, ARR_X.value, ARR_Y.value, outline="black",
+                                             fill=main_canvas["background"])
 
         draw_tick_UPR.wait()
 
-
-    if done == True:    # reached maximum number of iterations
+    if done == True:  # reached maximum number of iterations
         print(f"Reached maximum number of iterations ({MAX_ITER.value})")
         end_msg.set(f"Reached maximum number of iterations ({MAX_ITER.value})")
         main_win.update()
-    elif LAST == NEXT: # upitno dali radi
+    elif LAST == NEXT:  # upitno dali radi
         print(f"Reached maximum number of Quids ({MAX_QUIDS.value})")
         end_msg.set(f"Reached maximum number of Quids ({MAX_QUIDS.value})")
         main_win.update()
