@@ -1,4 +1,5 @@
 #region IMPORT
+from array import array
 import tkinter as tk
 from tkinter import ttk
 
@@ -11,7 +12,7 @@ import uuid
 import os
 
 import numpy as np
-import cupy as cp
+#import cupy as cp
 
 
 # pip install wheel
@@ -188,7 +189,8 @@ def is_paused():
     return True if paused == 1 else False
 
 def _create_circle(self, x, y, r, **kwargs):
-    return self.create_oval(x-r, y-r, x+r, y+r, **kwargs)
+    print(int(x[0])-r, int(x[1])-r)
+    return self.create_oval(int(x[0])-r, int(x[1])-r, int(x[0])+r, int(x[1])+r, **kwargs)
 
 tk.Canvas.create_circle = _create_circle
 
@@ -617,8 +619,8 @@ class Quid:
         NEXT = (NEXT + 1) % MAX_QUIDS.value
         self.index = freeSlots[NEXT]    
         
-        posx[self.index] = self.pos[0]
-        dirx[self.index] = self.dir[0]
+        pos_c[self.index] = self.pos
+        dir_c[self.index] = np.int32(self.dir * TEMPERATURE.value)
         
         
     def grow(self):
@@ -648,8 +650,8 @@ class Quid:
         listOfQuids[self.index] = None
         freeSlots[LAST] = self.index
         LAST = (LAST + 1) % MAX_QUIDS.value
-        posx[self.index] = -1
-        dirx[self.index] = 0
+        pos_c[self.index] = -1
+        dir_c[self.index] = 0
         del(self)
 
 
@@ -715,21 +717,18 @@ def timing(f):
 # CUDA part1
 x = np.gcd(int(np.ceil(np.sqrt(MAX_QUIDS.value))), int(np.ceil(MAX_QUIDS.value)))
 y = int(MAX_QUIDS.value / x)
-posx = cp.empty(MAX_QUIDS.value)
-dirx = cp.empty(MAX_QUIDS.value)
+pos_c = np.empty((MAX_QUIDS.value, 2))
+dir_c = np.empty((MAX_QUIDS.value, 2))
 def init_moving():
     for i in range(MAX_QUIDS.value):
         if listOfQuids[i]:
-            posx[i] = listOfQuids[i].pos[0]
+            pos_c[i][0] = listOfQuids[i].pos[0]
+            pos_c[i][1] = listOfQuids[i].pos[1]
+            dir_c[i][0] = int(listOfQuids[i].dir[0] * TEMPERATURE.value)
+            dir_c[i][1] = int(listOfQuids[i].dir[1] * TEMPERATURE.value)
         else:
-            posx[i] = -1
-        
-    for i in range(MAX_QUIDS.value):
-        if listOfQuids[i]:
-            dirx[i] = listOfQuids[i].dirx[0]
-        else:
-            dirx[i] = -1
-            
+            pos_c[i][0] = -1
+            dir_c[i][1] = -1
 
 
 ''' fix moving
@@ -909,7 +908,7 @@ if __name__ == '__main__':
     # CONTROL CODE
     tick_upr_fun()
 
-    init_moving()
+    #init_moving()
     creation(R_NUM.value, G_NUM.value, B_NUM.value, Y_NUM.value, ARR_X.value, ARR_Y.value)
     controlLoop = ControlLoop(ARR_X.value, ARR_Y.value)
 
@@ -927,13 +926,13 @@ if __name__ == '__main__':
             print("draw")
         draw_tick_UPR.clear()
 
-        posx = posx + dirx
+        pos_c = pos_c + dir_c
         controlLoop.run()
 
         for i in range(MAX_QUIDS.value):
             q = listOfQuids[i]
             if q:
-                main_canvas.create_circle(posx[i]+5, q.pos[1]+5, q.size+5, fill=q.get_color_code())
+                main_canvas.create_circle(pos_c[i]+5, q.pos[1]+5, q.size+5, fill=q.get_color_code())
 
         while paused:
             main_win.update()
