@@ -700,7 +700,7 @@ def timing(f):
         if PRINT_DEBUG:
             print(f"Iteration %d" % iter_counter, f"took: %2.8f sec" % (te-ts))
         if LOG_ITER_TIMES:
-            logger.log(f"Iteration %d " % iter_counter + f"took: %2.8f sec\n" % (te-ts))
+            logger.log(f"Iteration %d " % iter_counter + f"took: %2.8f sec, " % (te-ts) + f"quid count = %d\n" %quid_counter)
         global msiter
         msiter.set('{:.8f}'.format(round((te-ts), 8)))
         maxfps.set('{:4.4f}'.format(round(1/(te-ts), 4)))
