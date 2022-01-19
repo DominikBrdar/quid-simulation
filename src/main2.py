@@ -41,6 +41,7 @@ CUDATEST = 0
 
 def cuda_fun():
     # added to path: C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29333\bin\Hostx64\x64
+    # new: C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\bin\Hostx64\x64
 
     import pycuda.driver as cuda
     import pycuda.autoinit

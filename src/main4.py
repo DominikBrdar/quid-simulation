@@ -20,6 +20,7 @@ import numpy as np
 # -> got to Python Packages (bottom of screen), search for 'cupy-cuda115' and click install (right side of screen)
 
 USECUDA = 1
+SIMPLE = 1
 import cupy as cp
 
 """ memo
@@ -108,10 +109,10 @@ LAST = 0
 MAX_QUIDS = multiprocessing.Value("i", 2000)
 MAX_ITER = multiprocessing.Value("i", 2000)
 
-R_NUM = multiprocessing.Value("i", 100)
-G_NUM = multiprocessing.Value("i", 100)
-B_NUM = multiprocessing.Value("i", 100)
-Y_NUM = multiprocessing.Value("i", 100)
+R_NUM = multiprocessing.Value("i", 10)
+G_NUM = multiprocessing.Value("i", 10)
+B_NUM = multiprocessing.Value("i", 10)
+Y_NUM = multiprocessing.Value("i", 10)
 
 ARR_X = multiprocessing.Value("f", 200.0)
 ARR_Y = multiprocessing.Value("f", 200.0)
@@ -157,6 +158,13 @@ b_gpu = None
 
 
 # endregion
+
+
+import math
+def calculateDistance(x1,y1,x2,y2):
+    temp = ((abs(x2-x1))**2) + ((abs(y2-y1))**2)
+    temp = round(math.sqrt(temp), 4)
+    return temp
 
 class Logger:
     def __init__(self, file):
@@ -618,7 +626,7 @@ class Type_e(IntEnum):
 class Quid:
     def __init__(self, pos, l_type: Type_e = Type_e.RED):
         self.l_type = l_type
-        self.pos = pos
+        self.pos = pos  # cp.array(pos)
         self.dir = np.random.uniform(-1, 1, size=2)
         self.lifetime = 0
         self.size = 2
@@ -634,6 +642,7 @@ class Quid:
         if l_type == Type_e.YELLOW:
             self.pH = 5
             self.type = cp.array([0, -1])
+
         self.uuid = uuid.uuid4()
 
         global NEXT, quid_counter
@@ -642,6 +651,13 @@ class Quid:
         self.index = freeSlots[NEXT]
         listOfQuids.append(self)
 
+        """
+        quid_counter += 1
+        NEXT = (NEXT + 1) % MAX_QUIDS.value
+        self.index = freeSlots[NEXT]
+        listOfQuids.append(self)
+        """
+
     def grow(self):
         if self.size < 5:
             self.size = self.size + 1
@@ -649,6 +665,10 @@ class Quid:
             global NEXT
             arrayOfQuids[NEXT] = Quid(pos=self.pos - self.dir, l_type=self.l_type)
             NEXT = (NEXT + 1) % MAX_QUIDS.value
+
+            """
+            tmp = Quid(pos=self.pos - self.dir, l_type=self.l_type)
+            """
 
     def move(self):
         self.pos = self.pos + np.round(self.dir * TEMPERATURE.value)
@@ -665,7 +685,8 @@ class Quid:
 
     def die(self):
         arrayOfQuids[self.index] = None
-        listOfQuids.remove(self)
+        if self in listOfQuids:
+            listOfQuids.remove(self)
         global LAST, quid_counter
         quid_counter -= 1
         freeSlots[LAST] = self.index
@@ -680,7 +701,7 @@ def creation(redQuids, greenQuids, blueQuids, yellowQuids, ARR_X, ARR_Y):
             quid_y = np.random.randint(0, ARR_Y)
             arrayOfQuids[freeSlots[NEXT]] = [quid_x, quid_y]
             newQuid = Quid(pos=[quid_x, quid_y], l_type=clr)
-            listOfQuids.append(newQuid)
+            # listOfQuids.append(newQuid)   # unnecessary, done in constructor
 
 
 # može bolje
@@ -697,7 +718,9 @@ def interaction(quid1, quid2):
     if r == 1:
         if PRINT_DEBUG:
             print("THEY HAD SEX")
-        return Quid(pos=(quid1.pos + quid2.pos) // 2, l_type=quid1.l_type)
+        x1, y1, x2, y2 = quid1.pos[0], quid1.pos[1], quid2.pos[0], quid2.pos[1]
+
+        return Quid(pos=[round((x1+x2)/2,4),round((y1+y2)/2,4)], l_type=quid1.l_type)
 
     elif r == -1:
         return 0
@@ -766,8 +789,7 @@ class ControlLoop():
         # ovo se da u cudi utrpat ova for petlja
         moving_quids()
 
-        for i in range(MAX_QUIDS.value):
-            tmp_quid = arrayOfQuids[i]
+        for tmp_quid in listOfQuids:
             if tmp_quid.pos[0] < 0 or tmp_quid.pos[0] > ARR_X or tmp_quid.pos[1] < 0 or tmp_quid.pos[1] > ARR_Y:
                 tmp_quid.die()
                 if PRINT_DEBUG:
@@ -782,18 +804,22 @@ class ControlLoop():
         # CUDA 2 main part of logic that need to be run on CUDA
 
         # ove napravit onu tablicu koju Matija zeli
-        for i in range(MAX_QUIDS.value):
-            quid1 = arrayOfQuids[i]
+        for quid1 in listOfQuids:
             if not quid1: continue
-            for j in range(i):  # svaki sa svakim - dovoljno je proći trokut
-                quid2 = arrayOfQuids[j]
-                if not quid2: continue
-                if USECUDA:
-                    if cp.linalg.norm(quid1.pos - quid2.pos) <= 5:
+            for quid2 in listOfQuids:  # svaki sa svakim - dovoljno je proći trokut
+                if (not quid2) or (quid1.uuid == quid2.uuid):
+                    continue
+                if SIMPLE:
+                    x1,y1,x2,y2 = quid1.pos[0], quid1.pos[1], quid2.pos[0], quid2.pos[1]
+                    if calculateDistance(x1,y1,x2,y2) <= 5.0:
                         interaction(quid1, quid2)
                 else:
-                    if np.linalg.norm(quid1.pos - quid2.pos) <= 5:
-                        interaction(quid1, quid2)
+                    if USECUDA:
+                        if cp.linalg.norm(quid1.pos - quid2.pos) <= 5:
+                            interaction(quid1, quid2)
+                    else:
+                        if np.linalg.norm(quid1.pos - quid2.pos) <= 5:
+                            interaction(quid1, quid2)
                 # kad već računamo svaki sa svakim,
                 # odredimo sve međusobne udaljenosti
                 # a poslje od uzmemo koji su bliži od zadane granice
@@ -810,8 +836,7 @@ class ControlLoop():
         ph4count = 0.0
         phtotal = 0.0
 
-        for i in range(MAX_QUIDS.value):
-            quid = arrayOfQuids[i]
+        for quid in listOfQuids:
             if not quid: continue
             if (ARR_X / 2) < quid.pos[0] < ARR_X and (ARR_Y / 2) < quid.pos[1] < ARR_Y:
                 phkvadrant1 = phkvadrant1 + quid.pH
@@ -905,7 +930,7 @@ if __name__ == '__main__':
     creation(R_NUM.value, G_NUM.value, B_NUM.value, Y_NUM.value, ARR_X.value, ARR_Y.value)
     controlLoop = ControlLoop(ARR_X.value, ARR_Y.value)
 
-    a = list()
+    a = []
     for quid in listOfQuids:
         if quid is None:
             break
@@ -939,8 +964,9 @@ if __name__ == '__main__':
 
         for quid in listOfQuids:
             arrayOfQuids[quid.index] = a_moved[quid.index]
+            quid.pos = a_moved[quid.index]
             if quid:
-                main_canvas.create_circle(a_moved[quid.index][0] + 5, a_moved[quid.index][1] + 5, quid.size + 5,
+                main_canvas.create_circle(int(a_moved[quid.index][0]) + 5, int(a_moved[quid.index][1]) + 5, quid.size + 5,
                                           fill=quid.get_color_code())
 
         while paused:
