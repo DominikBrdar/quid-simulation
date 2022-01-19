@@ -617,8 +617,8 @@ class Quid:
         NEXT = (NEXT + 1) % MAX_QUIDS.value
         self.index = freeSlots[NEXT]    
         
-        posx[self.index // y -1][self.index % y] = self.pos[0]
-        dirx[self.index // y -1][self.index % y] = self.dir[0]
+        posx[self.index] = self.pos[0]
+        dirx[self.index] = self.dir[0]
         
         
     def grow(self):
@@ -648,8 +648,8 @@ class Quid:
         listOfQuids[self.index] = None
         freeSlots[LAST] = self.index
         LAST = (LAST + 1) % MAX_QUIDS.value
-        posx[self.index // x][self.index % x] = -1
-        dirx[self.index // x][self.index % x] = 0
+        posx[self.index] = -1
+        dirx[self.index] = 0
         del(self)
 
 
@@ -715,27 +715,20 @@ def timing(f):
 # CUDA part1
 x = np.gcd(int(np.ceil(np.sqrt(MAX_QUIDS.value))), int(np.ceil(MAX_QUIDS.value)))
 y = int(MAX_QUIDS.value / x)
-posx = cp.empty((x,y))
-dirx = cp.empty((x,y))
-
+posx = cp.empty(MAX_QUIDS.value)
+dirx = cp.empty(MAX_QUIDS.value)
 def init_moving():
-    k = 0
-    for i in range(x):
-        for j in range(y):
-            if listOfQuids[k]:
-                posx[i][j] = listOfQuids[k].pos[0]
-            else:
-                posx[i][j] = -1
-            k += 1
+    for i in range(MAX_QUIDS.value):
+        if listOfQuids[i]:
+            posx[i] = listOfQuids[i].pos[0]
+        else:
+            posx[i] = -1
         
-    k = 0
-    for i in range(x):
-        for j in range(y):
-            if listOfQuids[k]:
-                dirx[i][j] = listOfQuids[k].dir[0]
-            else:
-                dirx[i][j] = 0
-            k += 1
+    for i in range(MAX_QUIDS.value):
+        if listOfQuids[i]:
+            dirx[i] = listOfQuids[i].dirx[0]
+        else:
+            dirx[i] = -1
             
 
 
@@ -940,7 +933,7 @@ if __name__ == '__main__':
         for i in range(MAX_QUIDS.value):
             q = listOfQuids[i]
             if q:
-                main_canvas.create_circle(posx[q.index // y-1][q.index % y]+5, q.pos[1]+5, q.size+5, fill=q.get_color_code())
+                main_canvas.create_circle(posx[i]+5, q.pos[1]+5, q.size+5, fill=q.get_color_code())
 
         while paused:
             main_win.update()
