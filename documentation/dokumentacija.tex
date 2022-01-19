@@ -1,5 +1,7 @@
 \documentclass[12pt]{article}
 \usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\graphicspath{ {./} }
 
 \author{
 	Dominik Brdar \\
@@ -20,7 +22,7 @@
 \begin{document}
 	\begin{titlepage}
 	\title{
-		Simulacija života umjetnih organizama uz CUDA (grafičko šta već da napišemo)
+		Simulacija života umjetnih organizama uz CUDA
 	}
 	\maketitle
 	\end{titlepage}
@@ -33,24 +35,24 @@
 	takvih zadataka. Za programiranje grafičke kartice s ciljem kvalitetnije simulacije interakcija organizama 
 	u sklopu ovog seminara, odabrana je CUDA platforma.
 	
-	? koje ćemo simulirati u tekući sa Ph brijednoću jednakoj određenom broju različitih tipova organizma.
+	Uz pomoć CUDA-e ćemo simulirati suživot organizama u tekućini s Ph vrijednošću jednakoj određenom broju različitih tipova organizma.
 	
-	Key words: simulation, paralelism, CUDA, CPU, arrays, PyCuda, PyCharm
+	Key words: simulation, parallelism, CUDA, CPU, arrays, PyCuda, PyCharm
 	
 	\section{Motivacija}
-	Jedna od klasičnih prikaza molekula i mikroorganizama je prikaz računalnom simulacijom. 
+Jedna od klasičnih prikaza molekula i mikroorganizama je prikaz računalnom simulacijom. 
 	Proučavanje i liječenje bolesti
-za koje nije dovoljno promatrati živote organizama uz pommoć mikroskopa 
-	nebi bilo moguće bez takvih simulacija.
+za koje nije dovoljno promatrati živote organizama uz pomoć mikroskopa 
+	ne bi bilo moguće bez takvih simulacija.
 Mnoge tvrtke, poduzeća i istraživački centri značajno
 doprinose 
 	razvoju i kvaliteti lijekova koristeći računalne simulacije. 
 	Kretanje i ponašanje velikog broja molekula i organizama iziskuje značajnu računalnu moć budući da 
 	je potrebno obrađivati stotine tisuća objekata koji
 se prikazuju u simulaciji. Osim njihovog postojanja,
-	simuliraju se i brojene interakcije između samih organizama ili molekula. U takvom sustau, elemeti imaju 
+	simuliraju se i brojene interakcije između samih organizama ili molekula. U takvom sustavu, elementi imaju 
 	lokalne međuovisnosti, ali i neke globalne uvijete, te se za ovakve zadatke prikazuje da korištenje grafičke
-	procesorske jedinice može znatno ubrzati proces simulacije. Nvidia CUDA nudi pristupačano programsko okruženje 
+	procesorske jedinice može znatno ubrzati proces simulacije. Nvidia CUDA (Compute Unified Device Architecture) nudi pristupačno programsko okruženje 
 	za programiranje i korištenje grafičke kartice i njenog sklopovlja za paralelizaciju neovisnih računanja 
 	i obradu velikog skupa podataka istovremeno. Proizvođač Nvidia, koji je sam i razvijao svoje grafičke kartice, 
 	njihovu arhitekturu i programe na najnižoj razini, najbolje može ostvariti i programsku potporu pomoću koje 
@@ -77,8 +79,9 @@ Pritom je cilj rada dobiti uvid
 	Prije početka simulacije korisnik odabire broj iteracija koje će se izvesti i koliko maksimalno quidova simulacija može generirati prije završetka.
 	Potom odabire za svaku vrstu quidova koliko će ih se generirati na početku, veličinu područja koje se promatra i početnu temperaturu koja utječe na gibanje quidova u tom podučju.
 	Nakon unosa parametara pokreće se simulacija.\\
+	Korisnik ima mogućnost i centriranja canvasa kako bi simulacija bila na sredini prozora.
 	Svaki od quidova tijekom simulacije kreće se 
-	u različitim smjerovima koje su nasumične u x i y osi ovisno o incijalno postavljenoj temperaturi sustava čime dobivamo kaotičnost sustava.
+	u različitim smjerovima koje su nasumične u x i y osi ovisno o incijalno postavljenoj temperaturi sustava čime dobivamo kaotičnost sustava. Na kraju svake iteracije Quidovi rastu za 1 te pri veličini od 8 dolazi do mejoze u kojem nastaju dva Quida, roditelj i dijete.
 \\
 	
 	QUID
@@ -116,15 +119,29 @@ Pritom je cilj rada dobiti uvid
 		\item prekoračenje makismalnog broja quidova koje smo unijeli.
 	\end{itemize}
 	
+	\includegraphics[scale=0.75]{parametri.png}
+	
+	
+	
 	\subsection{Promjene stanja quidova i izračun pH vrijednosti}
 	Reakcija quidova događa se ovisno o njihovim tipovima kao što prikazuje tablica \ref{tab:firstTable}. Quidovi međusobno moraju biti na udaljenosti manjoj od 5 kako bi se interackija između njih dogodila.\\
-	Kako bi saznali udaljenost izmmeđu svakog od quidova, računamo preko obične liste. Prvi quid unutar liste iterira po ostatku liste i traži quid sa najmanjoj mogućom udaljenosti
-	Potom pri pronalasku najbližeg susjeda stvaramo objekt tipa Neighbours koji sadrži dva quida i njihovu udaljenost. Izvođenje opisanog procesa ima vremensku složenost $\mathbf{O(n^2)}$.\\
-	Nakon izračuna dolazi do iteracije po stogu koji potom ovisno o vrsti quidova izaziva interakcije. Nakon iterakcija,
-	prolazom po listi quidova u kompleksnosti $\mathbf{O(n)}$, ovisno o lokaciji quidova, računa se pH vrijednost svakog kvadranta.
+	U rješavanju programskog dijela dolazilo je do više problema. Budući da pyCuda u većini slučajeva radi sa matricama, kretanje svake jedinke Quida dostavljeno je u matrici sa svojom trenutačnom pozicijom te bi CUDA potom odradila izračun kretanja svakog Quida čime bi se ona kretala u x i y smjeru prema svom vektoru smjera.
+	Zbog strukture podataka dolazilo je do problema pri konverziji iz GPU kompatibilne strukture podataka u podržani matrični oblik. 
+	Rješavanje izračuna udaljenosti bi se izvodio također matrično gdje bi u prvom retku matrice  i u prvom stupcu bio prvi Quid koji bi potom imao vrijednosti udaljenosti svih svojih susjeda. \\
+	Drugi Quid bi bio u drugom retku u prvom stupcu te bi izračunao udaljenosti svakog Quida od svakog i tako bi dobili matricu veličine $\mathbf{N^2}$.
+	Nakon izračuna bi svaki Quid obavio interakciju sa svojim najbližim susjednom i dobio postavljenu zastavicu za obavljenu interakciju.
+	
+	\includegraphics[scale=0.45]{simulacija.png}
 	
 	\section{Osvrt na rezultat}
+	U radu sa sučeljem vezano za GPU korišten su alati PyCuda i Cupy, no alati nemaju transparentnu vezu stoga je međukomunikacija zahtijevala temeljnije poznavanje alata i pripadnih podatkovnih struktura. U main.py opisana je simulacija klasično sekvencijske izvedbe programa, dok u main2.py uvedena osnovna upotreba vektorskog računanja pomoću CPU čime je performasna uvelike ubrzana. U main3.py i main4.py uvedeni su pokušaji izvedbe simulacije preko GPU korištenjem alata PyCuda i Cupy koji zbog unutarnjih nekonzistentnosti strukture podataka nisu uspjeli postići funkcionalnost izvedenu u main2.py. 
 	
 	\section{Zaključak}
-	
+	Simulacija umjetnih i realnih molekula ili mikroorganizama jedno je od kompleksnim područja zbog svog iznimno velikog 
+    broja jediniki i prikaza njihovih ponašanja kako bismo ih što bolje prikazali u svojoj prirodi. Znanstvenici uz pomoć
+    modernih alata poput CUDA i sličnih alata olakšavaju izračune preko kojih prikazuju ove pojave. Korištenjem CPU i RAM-a 
+    naspram korištenjem GPU-a rezultira dužim periodom izvršavanja čime ne bismo uštedjeli vrijeme zbog nemogućnosti CPU za izvršavanje velikog broja paralelnih vektorskih operacija.
+    Za razliku od toga korištenjem CUDA iskorištavamo masovne paralelne mogućnosti GPU čime dolazi do dodatnog mjesta za napredak izvođenja simulacije sa
+    potencijalnom novim parametrima.
+    
 \end{document}
