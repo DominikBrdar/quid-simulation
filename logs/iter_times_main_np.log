@@ -1,0 +1,23 @@
+Initialization took: 0.01351962 sec 
+Iteration 1 took: 0.35813436 sec, quid counter = 392
+Iteration 2 took: 0.23883889 sec, quid counter = 395
+Iteration 3 took: 0.21539264 sec, quid counter = 398
+Iteration 4 took: 0.18578843 sec, quid counter = 400
+Iteration 5 took: 0.16743536 sec, quid counter = 720
+Iteration 6 took: 0.06265547 sec, quid counter = 746
+Iteration 7 took: 0.04858586 sec, quid counter = 761
+Iteration 8 took: 0.04017416 sec, quid counter = 790
+Iteration 9 took: 0.04728985 sec, quid counter = 690
+Iteration 10 took: 0.05108110 sec, quid counter = 895
+Iteration 11 took: 0.04226425 sec, quid counter = 921
+Iteration 12 took: 0.03978984 sec, quid counter = 936
+Iteration 13 took: 0.03894924 sec, quid counter = 858
+Iteration 14 took: 0.04736523 sec, quid counter = 780
+Iteration 15 took: 0.04689112 sec, quid counter = 808
+Iteration 16 took: 0.03293669 sec, quid counter = 855
+Iteration 17 took: 0.05145964 sec, quid counter = 879
+Iteration 18 took: 0.05239781 sec, quid counter = 897
+Iteration 19 took: 0.04698188 sec, quid counter = 998
+Iteration 20 took: 0.05542669 sec, quid counter = 1104
+Simulation completed
+Reached maximum number of Quids (1000)

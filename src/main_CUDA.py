@@ -121,7 +121,6 @@ max_iter = None
 quid_c = None
 max_quid = None
 
-end_msg = "simulation has been interupted"
 #endregion
 
 class Logger:
@@ -631,6 +630,7 @@ if __name__ == '__main__':
     else:
         import numpy as np
     # - - - - - - - - - - -{ . )CUDA( . }- - - - - - - - - - - #
+    time1 = timer()
     MAX = MAX_QUIDS.value
     START = R_NUM.value + G_NUM.value + B_NUM.value + Y_NUM.value
     X = ARR_X.value
@@ -692,6 +692,9 @@ if __name__ == '__main__':
             return 'yellow'
 
     quid_counter = len(Q)
+    time2 = timer()
+    
+    logger.log(f"Initialization took: %2.8f sec \n" %(time2-time1))
     
     while 0 < quid_counter < MAX_QUIDS.value:
         draw_tick_UPR.clear()
@@ -786,11 +789,13 @@ if __name__ == '__main__':
 
 
     if done == True:    # reached maximum number of iterations
-        print(f"Reached maximum number of iterations ({MAX_ITER.value})")
+        p = f"Reached maximum number of iterations ({MAX_ITER.value})"
+        print(p)
         end_msg.set(f"Reached maximum number of iterations ({MAX_ITER.value})")
         main_win.update()
     elif quid_counter >= MAX_QUIDS.value:
-        print(f"Reached maximum number of Quids ({MAX_QUIDS.value})")
+        p = f"Reached maximum number of Quids ({MAX_QUIDS.value})"
+        print(p)
         end_msg.set(f"Reached maximum number of Quids ({MAX_QUIDS.value})")
         main_win.update()
     else:
@@ -803,7 +808,7 @@ if __name__ == '__main__':
             main_win.update()
     else:
         print("Exiting")
-        logger.log(str(end_msg))
+        logger.log("Simulation completed\n" + p)
         logger.close()
         os._exit(0)
 
