@@ -670,8 +670,7 @@ if __name__ == '__main__':
         if i not in Q:
             pos_c[i] = [1000000, 1000000]
 
-    dir_c = np.zeros((MAX, 2), dtype=int)
-    dir_c[:START, :] = np.random.randint(-T, T, size=(START, 2))
+    dir_c = np.random.randint(-T, T, size=(MAX, 2), dtype=int)
 
     # type_c = np.zeros((MAX, 2), dtype=int)
     # type_c[:START, :] = np.resize(types, (START, 2))
@@ -724,7 +723,7 @@ if __name__ == '__main__':
                     # a = np.dot(type_c[q1], type_c[q2]) # možda može bolje
                     if a % 2 == 0:
                         Q.append((Q[-1] + 1) % MAX)
-                        pos_c[Q[-1]] = [np.random.randint(X), np.random.randint(Y)]
+                        pos_c[Q[-1]] = (pos_c[q1] + pos_c[q2]) // 2
                         ph_c[Q[-1]] = ph_c[q1]
                     elif a == 15:
                         Q.remove(q1)
@@ -741,11 +740,11 @@ if __name__ == '__main__':
         # grow
         for q in Q:
             size_c[q] += 1
-            if size_c[q] == 6:
+            if size_c[q] == 12:
                 Q.append((Q[-1] + 1) % MAX)
                 pos_c[Q[-1]] = [np.random.randint(X), np.random.randint(Y)]
                 ph_c[Q[-1]] = ph_c[q]
-            elif size_c[q] == 10:
+            elif size_c[q] == 17:
                 size_c[q] = 0
                 Q.remove(q)
         
