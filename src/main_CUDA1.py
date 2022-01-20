@@ -623,9 +623,11 @@ if __name__ == '__main__':
     max_iter.set(str(MAX_ITER.value))
     
     
-
-    import cupy as cp
-    import numpy as np
+    # hack
+    if USECUDA:
+        import cupy as np
+    else:
+        import numpy as np
     # - - - - - - - - - - -{ . )CUDA( . }- - - - - - - - - - - #
     time1 = timer()
     MAX = MAX_QUIDS.value
@@ -633,8 +635,7 @@ if __name__ == '__main__':
     X = ARR_X.value
     Y = ARR_Y.value
     T = TEMPERATURE.value
-    center_coord = cp.array([X / 2, Y / 2])
-    cp.cuda.Stream.null.synchronize()
+    center_coord = np.array([X / 2, Y / 2])
     colors_pH_dict = {      # this dictionary instructs how will interactions play out
         "red" : 4,          # 2 quids whos sum(ph) % 2 == 0 will make ofspings  
         "green" : 6,        # 2 quids whos sum(ph) == 15  will kill themselfs  
@@ -648,7 +649,6 @@ if __name__ == '__main__':
     Q = [*range(START)]   # za praćenje broja quidova
     size_c = np.zeros(MAX, dtype=int)
     ph_c = np.zeros(MAX, dtype=int)
-    cp.cuda.Stream.null.synchronize()
     i = 0
     for q in Q:
         size_c[q] = 1
@@ -661,17 +661,15 @@ if __name__ == '__main__':
         elif i < START:
             ph_c[q] = colors_pH_dict['yellow']
         i += 1
-    pos_c = cp.zeros((MAX, 2), dtype=int)
-    pos_c[:START, :1] = cp.random.randint(1, X, size=(START, 1))
-    pos_c[:START, 1:] = cp.random.randint(Y, size=(START, 1))
-    cp.cuda.Stream.null.synchronize()
+    pos_c = np.zeros((MAX, 2), dtype=int)
+    pos_c[:START, :1] = np.random.randint(1, X, size=(START, 1))
+    pos_c[:START, 1:] = np.random.randint(Y, size=(START, 1))
 
     for i in range(MAX):
         if i not in Q:
             pos_c[i] = np.array([1000000, 1000000])
 
-    dir_c = cp.random.randint(-T, T, size=(MAX, 2), dtype=int)
-    cp.cuda.Stream.null.synchronize()
+    dir_c = np.random.randint(-T, T, size=(MAX, 2), dtype=int)
 
     # type_c = np.zeros((MAX, 2), dtype=int)
     # type_c[:START, :] = np.resize(types, (START, 2))
@@ -690,7 +688,6 @@ if __name__ == '__main__':
             return 'blue'
         elif ph_c[i] == colors_pH_dict['yellow']:
             return 'yellow'
-    cp.cuda.Stream.null.synchronize()
 
     quid_counter = len(Q)
     time2 = timer()
@@ -708,34 +705,28 @@ if __name__ == '__main__':
         
         # 1 CUDA iteration ...
         # calc nearest neighbour
-        nearestx = cp.abs(pos_c[:,1:] - pos_c[:,1:].transpose())
-        nearesty = cp.abs(pos_c[:,:1] - pos_c[:,:1].transpose())
-        cp.cuda.Stream.null.synchronize()
+        nearestx = np.abs(pos_c[:,1:] - pos_c[:,1:].transpose())
+        nearesty = np.abs(pos_c[:,:1] - pos_c[:,:1].transpose())
         nearestMat = nearestx + nearesty
-        cp.cuda.Stream.null.synchronize()
         for i in Q:
             nearestMat[i][i] = 1000000
 
         # this will also return neighbours that don't exist
         # non-existing neighbours will have distance == 0
         nearest = np.where(nearestMat < 7) 
-        cp.cuda.Stream.null.synchronize()
 
         # calculate interactin
         for q1 in Q:
             if q1 in nearest[0]:
-                q2 = nearest[1][cp.where(nearest[0] == q1)][0]
-                cp.cuda.Stream.null.synchronize()
+                q2 = nearest[1][np.where(nearest[0] == q1)][0]
                 if q1 < q2 and q2 in Q:
                     a = ph_c[q1] + ph_c[q2]
-                    cp.cuda.Stream.null.synchronize()
                     # depricated
                     # a = np.dot(type_c[q1], type_c[q2]) 
                     if a % 2 == 0:
                         Q.append((Q[-1] + 1) % MAX)
                         pos_c[Q[-1]] = (pos_c[q1] + pos_c[q2]) // 2
                         ph_c[Q[-1]] = ph_c[q1]
-                        cp.cuda.Stream.null.synchronize()
                     elif a == 15:
                         Q.remove(q1)
                         Q.remove(q2)
@@ -753,18 +744,13 @@ if __name__ == '__main__':
             size_c[q] += 1
             if size_c[q] == 12:
                 Q.append((Q[-1] + 1) % MAX)
-                pos_c[Q[-1]] = cp.array([np.random.randint(X), np.random.randint(Y)])
+                pos_c[Q[-1]] = np.array([np.random.randint(X), np.random.randint(Y)])
                 ph_c[Q[-1]] = ph_c[q]
-                cp.cuda.Stream.null.synchronize()
-        
             elif size_c[q] == 17:
                 size_c[q] = 0
                 Q.remove(q)
         
         # pH change
-        tmp_pos = pos_c - center_coord
-        cp.cuda.Stream.null.synchronize()
-        
         phkvadrant1 = 0.0
         phkvadrant2 = 0.0
         phkvadrant3 = 0.0
@@ -775,6 +761,7 @@ if __name__ == '__main__':
         ph4count = 0.0
         phtotal = 0.0
 
+        tmp_pos = pos_c - center_coord
         for q in Q:
             if tmp_pos[q][0] > 0:
                 if tmp_pos[q][1] > 0:
@@ -800,6 +787,8 @@ if __name__ == '__main__':
         if int(ph4count) != 0:
             phkvadrant4 = phkvadrant4 / ph4count
         phtotal = (phkvadrant4 + phkvadrant3 + phkvadrant2 + phkvadrant1) / 4
+        if USECUDA:
+            np.cuda.Stream.null.synchronize()
         # - - - - - - - - - - - - - - - - - - - - - - - - - #       
         
         t2 = timer()        # stop timer
