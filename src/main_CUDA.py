@@ -635,7 +635,7 @@ if __name__ == '__main__':
     X = ARR_X.value
     Y = ARR_Y.value
     T = TEMPERATURE.value
-
+    center_coord = np.array([X / 2, Y / 2])
     colors_pH_dict = {      # this dictionary instructs how will interactions play out
         "red" : 4,          # 2 quids whos sum(ph) % 2 == 0 will make ofspings  
         "green" : 6,        # 2 quids whos sum(ph) == 15  will kill themselfs  
@@ -667,7 +667,7 @@ if __name__ == '__main__':
 
     for i in range(MAX):
         if i not in Q:
-            pos_c[i] = [1000000, 1000000]
+            pos_c[i] = np.array([1000000, 1000000])
 
     dir_c = np.random.randint(-T, T, size=(MAX, 2), dtype=int)
 
@@ -744,7 +744,7 @@ if __name__ == '__main__':
             size_c[q] += 1
             if size_c[q] == 12:
                 Q.append((Q[-1] + 1) % MAX)
-                pos_c[Q[-1]] = [np.random.randint(X), np.random.randint(Y)]
+                pos_c[Q[-1]] = np.array([np.random.randint(X), np.random.randint(Y)])
                 ph_c[Q[-1]] = ph_c[q]
             elif size_c[q] == 17:
                 size_c[q] = 0
@@ -761,7 +761,7 @@ if __name__ == '__main__':
         ph4count = 0.0
         phtotal = 0.0
 
-        tmp_pos = pos_c - [X / 2, Y / 2]
+        tmp_pos = pos_c - center_coord
         for q in Q:
             if tmp_pos[q][0] > 0:
                 if tmp_pos[q][1] > 0:
