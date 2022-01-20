@@ -2,10 +2,8 @@
 from array import array
 from lib2to3.pgen2.token import STAR
 import tkinter as tk
-from tkinter import ttk
 
 import multiprocessing
-from enum import IntEnum
 from threading import Timer
 from functools import wraps
 from timeit import default_timer as timer
@@ -98,6 +96,7 @@ DATA_ENTERED = False
 waitOnEnd = False
 centered = True
 done = False
+p = ''
 
 phkvadrant1 = 0.0
 ph1count = 0
@@ -344,13 +343,13 @@ def main_window():
     ph4 = tk.StringVar()
     phT = tk.StringVar()
 
-    ph1.set('7.0')
+    ph1.set('4.0')
     l1 = tk.Label(ph, textvariable=ph1)
     l1_lab = tk.Label(master=ph, text="Ph 1. Kvd:")
     l1_lab.grid(row=0, column=0, padx=5, sticky="ns")
     l1.grid(row=0, column=1, padx=5, sticky="ns")
 
-    ph2.set('8.0')
+    ph2.set('6.0')
     l2 = tk.Label(ph, textvariable=ph2)
     l2_lab = tk.Label(master=ph, text="Ph 2. Kvd:")
     l2_lab.grid(row=1, column=0, padx=5, sticky="ns")
@@ -362,13 +361,13 @@ def main_window():
     l3_lab.grid(row=2, column=0, padx=5, sticky="ns")
     l3.grid(row=2, column=1, padx=5, sticky="ns")
 
-    ph4.set('10.0')
+    ph4.set('11.0')
     l4 = tk.Label(ph, textvariable=ph4)
     l4_lab = tk.Label(master=ph, text="Ph 4. Kvd:")
     l4_lab.grid(row=3, column=0, padx=5, sticky="ns")
     l4.grid(row=3, column=1, padx=5, sticky="ns")
 
-    phT.set('11.0')
+    phT.set('7.5')
     lT = tk.Label(ph, textvariable=phT)
     lT_lab = tk.Label(master=ph, text="Total Average Ph:")
     lT_lab.grid(row=4, column=0, padx=5, sticky="ns")
@@ -643,7 +642,7 @@ if __name__ == '__main__':
         "blue" : 9,         # if they come close enough
         "yellow" : 11
     }
-    # depricated
+    # depricated // kompliciranije nego što je potrebno
     # types = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
     
     # init data structures for cuda
@@ -720,7 +719,7 @@ if __name__ == '__main__':
                 if q1 < q2 and q2 in Q:
                     a = ph_c[q1] + ph_c[q2]
                     # depricated
-                    # a = np.dot(type_c[q1], type_c[q2]) # možda može bolje
+                    # a = np.dot(type_c[q1], type_c[q2]) 
                     if a % 2 == 0:
                         Q.append((Q[-1] + 1) % MAX)
                         pos_c[Q[-1]] = (pos_c[q1] + pos_c[q2]) // 2
@@ -749,6 +748,42 @@ if __name__ == '__main__':
                 Q.remove(q)
         
         # TODO: pH change
+        phkvadrant1 = 0.0
+        phkvadrant2 = 0.0
+        phkvadrant3 = 0.0
+        phkvadrant4 = 0.0
+        ph1count = 0.0
+        ph2count = 0.0
+        ph3count = 0.0
+        ph4count = 0.0
+        phtotal = 0.0
+
+        tmp_pos = pos_c - [X / 2, Y / 2]
+        for q in Q:
+            if tmp_pos[q][0] > 0:
+                if tmp_pos[q][1] > 0:
+                    phkvadrant1 = phkvadrant1 + ph_c[q]
+                    ph1count += 1
+                else:
+                    phkvadrant4 = phkvadrant4 + ph_c[q]
+                    ph4count += 1
+            else:
+                if tmp_pos[q][1] > 0:
+                    phkvadrant2 = phkvadrant2 + ph_c[q]
+                    ph2count += 1
+                else:
+                    phkvadrant3 = phkvadrant3 + ph_c[q]
+                    ph3count += 1
+                
+        if int(ph1count) != 0:
+            phkvadrant1 = phkvadrant1 / ph1count
+        if int(ph2count) != 0:
+            phkvadrant2 = phkvadrant2 / ph2count
+        if int(ph3count) != 0:
+            phkvadrant3 = phkvadrant3 / ph3count
+        if int(ph4count) != 0:
+            phkvadrant4 = phkvadrant4 / ph4count
+        phtotal = (phkvadrant4 + phkvadrant3 + phkvadrant2 + phkvadrant1) / 4
         # - - - - - - - - - - - - - - - - - - - - - - - - - #       
         
         t2 = timer()        # stop timer
