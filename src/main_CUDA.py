@@ -1,5 +1,6 @@
 #region IMPORT
 from array import array
+from lib2to3.pgen2.token import STAR
 import tkinter as tk
 from tkinter import ttk
 
@@ -8,6 +9,7 @@ from enum import IntEnum
 from threading import Timer
 from functools import wraps
 from timeit import default_timer as timer
+from tracemalloc import start
 from turtle import pos
 import uuid
 import os
@@ -630,19 +632,36 @@ if __name__ == '__main__':
         import numpy as np
     # - - - - - - - - - - -{ . )CUDA( . }- - - - - - - - - - - #
     MAX = MAX_QUIDS.value
-    START = 400
+    START = R_NUM.value + G_NUM.value + B_NUM.value + Y_NUM.value
     X = ARR_X.value
     Y = ARR_Y.value
     T = TEMPERATURE.value
 
-    #                  Red     green    blue    yellow
-    types = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
-
+    colors_pH_dict = {      # this dictionary instructs how will interactions play out
+        "red" : 4,          # 2 quids whos sum(ph) % 2 == 0 will make ofspings  
+        "green" : 6,        # 2 quids whos sum(ph) == 15  will kill themselfs  
+        "blue" : 9,         # if they come close enough
+        "yellow" : 11
+    }
+    # depricated
+    # types = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
+    
     # init data structures for cuda
     Q = [*range(START)]   # za praćenje broja quidova
     size_c = np.zeros(MAX, dtype=int)
+    ph_c = np.zeros(MAX, dtype=int)
+    i = 0
     for q in Q:
         size_c[q] = 1
+        if i < R_NUM.value:
+            ph_c[q] = colors_pH_dict['red']
+        elif i < R_NUM.value + G_NUM.value:
+            ph_c[q] = colors_pH_dict['green']
+        elif i < R_NUM.value + G_NUM.value + B_NUM.value:
+            ph_c[q] = colors_pH_dict['blue']
+        elif i < START:
+            ph_c[q] = colors_pH_dict['yellow']
+        i += 1
     pos_c = np.zeros((MAX, 2), dtype=int)
     pos_c[:START, :1] = np.random.randint(1, X, size=(START, 1))
     pos_c[:START, 1:] = np.random.randint(Y, size=(START, 1))
@@ -654,22 +673,22 @@ if __name__ == '__main__':
     dir_c = np.zeros((MAX, 2), dtype=int)
     dir_c[:START, :] = np.random.randint(-T, T, size=(START, 2))
 
-    type_c = np.zeros((MAX, 2), dtype=int)
-    type_c[:START, :] = np.resize(types, (START, 2))
-
+    # type_c = np.zeros((MAX, 2), dtype=int)
+    # type_c[:START, :] = np.resize(types, (START, 2))
+    
     # umjesto udaljenosti, računamo zbroj x i y komponenata poveznice 
     # uvijet udaljenost < 5 je ekvivalnentno: x+y < 7  
     # ** sjeti se pitagore i jednakokračnog trokuta
     nearest = np.resize(7, MAX)
 
     def get_color_code(i):
-        if type_c[i][0] == 1 and  type_c[i][1] == 0:
+        if ph_c[i] == colors_pH_dict['red']:
             return 'red'
-        elif type_c[i][0] == -1 and  type_c[i][1] == 0:
-            return 'blue'
-        elif type_c[i][0] == 0 and  type_c[i][1] == 1:
+        elif ph_c[i] == colors_pH_dict['green']:
             return 'green'
-        elif type_c[i][0] == 0 and  type_c[i][1] == -1:
+        elif ph_c[i] == colors_pH_dict['blue']:
+            return 'blue'
+        elif ph_c[i] == colors_pH_dict['yellow']:
             return 'yellow'
 
     quid_counter = len(Q)
@@ -697,12 +716,14 @@ if __name__ == '__main__':
             if q1 in nearest[0]:
                 q2 = nearest[1][np.where(nearest[0] == q1)][0]
                 if q1 < q2 and q2 in Q:
-                    a = np.dot(type_c[q1], type_c[q2]) # možda može bolje
-                    if a == 1:
+                    a = ph_c[q1] + ph_c[q2]
+                    # depricated
+                    # a = np.dot(type_c[q1], type_c[q2]) # možda može bolje
+                    if a % 2 == 0:
                         Q.append((Q[-1] + 1) % MAX)
                         pos_c[Q[-1]] = [np.random.randint(X), np.random.randint(Y)]
-                        type_c[Q[-1]] = type_c[q1]
-                    elif a == -1:
+                        ph_c[Q[-1]] = ph_c[q1]
+                    elif a == 15:
                         Q.remove(q1)
                         Q.remove(q2)
             
@@ -720,7 +741,7 @@ if __name__ == '__main__':
             if size_c[q] == 6:
                 Q.append((Q[-1] + 1) % MAX)
                 pos_c[Q[-1]] = [np.random.randint(X), np.random.randint(Y)]
-                type_c[Q[-1]] = type_c[q]
+                ph_c[Q[-1]] = ph_c[q]
             elif size_c[q] == 10:
                 size_c[q] = 0
                 Q.remove(q)
