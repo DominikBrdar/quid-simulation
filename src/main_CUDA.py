@@ -691,7 +691,10 @@ if __name__ == '__main__':
 
     quid_counter = len(Q)
     time2 = timer()
-    
+    if USECUDA:
+        logger.log("Using CUDA with CuPy... ")
+    else:
+        logger.log("Using NumPy... ")
     logger.log(f"Initialization took: %2.8f sec \n" %(time2-time1))
     
     while 0 < quid_counter < MAX_QUIDS.value:
@@ -784,6 +787,8 @@ if __name__ == '__main__':
         if int(ph4count) != 0:
             phkvadrant4 = phkvadrant4 / ph4count
         phtotal = (phkvadrant4 + phkvadrant3 + phkvadrant2 + phkvadrant1) / 4
+        if USECUDA:
+            np.cuda.Stream.null.synchronize()
         # - - - - - - - - - - - - - - - - - - - - - - - - - #       
         
         t2 = timer()        # stop timer
