@@ -18,6 +18,16 @@ import os
 USECUDA = 0
 CUDATEST = 0
 
+
+DEMOVER = 1
+
+"""
+1 - pravedno
+2 - dominantni red jedino ostavi kompatibilni green
+3 - red vs yellow (blue vs green se isto ne vole)
+4 - yellow i blue se vole -> explosion
+"""
+
 """ memo
 # pip install wheel
 # -> got to Python Packages (bottom of screen), search for 'cupy-cuda115' and click install (right side of screen)
@@ -82,16 +92,35 @@ LOGFILE = "iter_times.log"
 MAX_QUIDS = multiprocessing.Value("i", 2500)
 MAX_ITER = multiprocessing.Value("i", 2000)
 
-R_NUM = multiprocessing.Value("i", 200)
-G_NUM = multiprocessing.Value("i", 200)
-B_NUM = multiprocessing.Value("i", 200)
-Y_NUM = multiprocessing.Value("i", 200)
+SIM_SPEED = multiprocessing.Value("i", 100)
+TEMPERATURE = multiprocessing.Value("i", 10)
+
+if DEMOVER == 1:
+    R_NUM = multiprocessing.Value("i", 200)
+    G_NUM = multiprocessing.Value("i", 200)
+    B_NUM = multiprocessing.Value("i", 200)
+    Y_NUM = multiprocessing.Value("i", 200)
+    TEMPERATURE = multiprocessing.Value("i", 10)
+elif DEMOVER == 2:
+    R_NUM = multiprocessing.Value("i", 100)
+    G_NUM = multiprocessing.Value("i", 20)
+    B_NUM = multiprocessing.Value("i", 20)
+    Y_NUM = multiprocessing.Value("i", 50)
+elif DEMOVER == 3:
+    R_NUM = multiprocessing.Value("i", 200)
+    G_NUM = multiprocessing.Value("i", 0)
+    B_NUM = multiprocessing.Value("i", 0)
+    Y_NUM = multiprocessing.Value("i", 200)
+elif DEMOVER == 4:
+    R_NUM = multiprocessing.Value("i", 0)
+    G_NUM = multiprocessing.Value("i", 0)
+    B_NUM = multiprocessing.Value("i", 200)
+    Y_NUM = multiprocessing.Value("i", 200)
 
 ARR_X = multiprocessing.Value("f", 1200.0)
 ARR_Y = multiprocessing.Value("f", 500.0)
 
-SIM_SPEED = multiprocessing.Value("i", 100)
-TEMPERATURE = multiprocessing.Value("i", 10)
+
 
 DATA_ENTERED = False
 waitOnEnd = False
