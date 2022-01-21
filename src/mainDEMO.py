@@ -732,7 +732,7 @@ if __name__ == '__main__':
                         Q.remove(q2)
 
         # move
-        pos_c += dir_c
+        pos_c += dir_c * (TEMPERATURE.value // 3)
 
         # check if it escaped
         for q in Q:
@@ -744,7 +744,8 @@ if __name__ == '__main__':
             size_c[q] += 1
             if size_c[q] == 12:
                 Q.append((Q[-1] + 1) % MAX)
-                pos_c[Q[-1]] = np.array([np.random.randint(X), np.random.randint(Y)])
+                # pos_c[Q[-1]] = np.array([np.random.randint(X), np.random.randint(Y)])
+                pos_c[Q[-1]] = pos_c[q] + 2
                 ph_c[Q[-1]] = ph_c[q]
             elif size_c[q] == 17:
                 size_c[q] = 0
